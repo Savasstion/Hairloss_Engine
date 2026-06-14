@@ -1,14 +1,66 @@
-CMakeLists.txt.user
-CMakeCache.txt
-CMakeFiles
-CMakeScripts
-Testing
-Makefile
-cmake_install.cmake
-install_manifest.txt
-compile_commands.json
-CTestTestfile.cmake
-_deps
-CMakeUserPresets.json
+# ── CMake (additions) ──────────────────────────────
+out/                        # VS Code & VS CMake output folder
+CMakeUserPresets.json       # already have this, good
 
+# ── Compiled output ────────────────────────────────
+*.exe
+*.out
+*.app
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# ── MSVC specific ──────────────────────────────────
+*.pdb
+*.ilk
+*.exp
+*.idb
+
+# ── Precompiled headers ────────────────────────────
+*.pch
+*.gch
+
+# ── Ninja (used by CLion & VS Code by default) ─────
+.ninja_deps
+.ninja_log
+build.ninja
+
+# ── Other IDEs ─────────────────────────────────────
+*.xcodeproj/                # Xcode
+*.xcworkspace/              # Xcode
+*.cbp                       # Code::Blocks
+*.depend                    # Code::Blocks
+*.layout                    # Code::Blocks
+.project                    # Eclipse
+.cproject                   # Eclipse
+.settings/                  # Eclipse
+*.sublime-project           # Sublime Text
+*.sublime-workspace         # Sublime Text
+
+# ── Editor temp files ──────────────────────────────
+*.swp                       # Vim/Neovim
+*.swo                       # Vim/Neovim
+*~                          # Emacs / general
+\#*\#                       # Emacs auto-save
+.#*                         # Emacs lock files
+
+# ── OS generated ───────────────────────────────────
+.DS_Store                   # macOS
+.DS_Store?
+._*
+Thumbs.db                   # Windows
+Desktop.ini                 # Windows
+ehthumbs.db                 # Windows
+
+# ── Profiling / coverage ───────────────────────────
+*.gcda
+*.gcno
+gmon.out
+
+# folders
 build
