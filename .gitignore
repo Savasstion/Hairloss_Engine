@@ -64,4 +64,4 @@ gmon.out
 
 # folders
 build
-vendor
+/vendor/SDL
