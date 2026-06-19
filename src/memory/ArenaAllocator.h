@@ -7,6 +7,20 @@
 #include <type_traits>
 #include <utility>
 
+
+//	JIA DING Notes:
+//	- Instead of using the explicit keyword in constructors, use modern initializers to create objects instead
+//	- ln 53, 92, no Malay in actual code pls
+//	- Arena destructor is confusing, you first clear then still call delete, so it is not actually cleared when the clear() gets called?
+//	- Why so many allocate functions, just use one templated function, allocating a single element or array still yields a pointer, so why bother differentiating?
+//	- There is both a reset and clear function, whats the difference?
+//	- Dont use underscores so much, we are more familiar with Unity's system of capitalizing function names and the use of underscores only for MACROS
+//	- Lets not use the m-prefix for class members, it is more useful to use the space for prefix for a p-prefix for pointers in class members
+//	- No need use std:: for size_t, just use size_t instead of std::size_t
+//	- instead of assert, see if you can do static_assert instead for compile-time checking, plus it can give useful errors during coding
+//	- MOST IMPORTANT, USE A .cpp bruh
+
+
 //=========================
 // Alignment helper
 //=========================
