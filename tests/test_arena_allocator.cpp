@@ -1,8 +1,10 @@
 #include <catch2/catch_test_macros.hpp>
+#include "sandbox/sav/memory/ArenaAllocator.h"
 
-TEST_CASE( "Basic test case", "[tutorial]" )
+TEST_CASE("Arena Allocator: Can allocate memory", "[arenaAlloc]")
 {
-    constexpr int sum = 1 + 1;
-    
-    REQUIRE(sum == 2);
+    Arena arena = Arena(sizeof(int) * 1);
+
+    int* arr = arena.AllocateMemory<int>(1);
+    REQUIRE(arr != nullptr);
 }
