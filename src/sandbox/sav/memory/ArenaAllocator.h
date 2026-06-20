@@ -21,11 +21,11 @@ constexpr size_t GB(float inGB) noexcept
 
 class Arena
 {
-    size_t capacity;
-    size_t size;
+    size_t capacity;    //  Max memory that can be allocated
+    size_t size;        //  Current amount of memory used
     
-    std::byte* pData;
-    Arena* pNext;
+    std::byte* pData;   //  Pointer to actual memory to be used
+    Arena* pNext;       //  Pointer to next Arena block if Arena is extendable
     
     bool bIsExtendable;
     
@@ -39,6 +39,9 @@ public:
     Arena();
     Arena(size_t inCapacity, bool inIsExtendable = false);
     ~Arena();
+
+    size_t GetCapacity() const;
+    size_t GetSize() const;
     
 };
 
