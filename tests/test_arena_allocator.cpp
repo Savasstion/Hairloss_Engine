@@ -27,13 +27,13 @@ namespace
 
 // ─── Basic Allocation ────────────────────────────────────────────────────────
 
-TEST_CASE("Arena Allocator: Single allocation returns valid pointer", "[arenaAlloc]")
+TEST_CASE("[Sav]Arena Allocator: Single allocation returns valid pointer", "[arenaAlloc][sav]")
 {
     Arena arena(sizeof(int));
     REQUIRE(arena.AllocateMemory<int>(1) != nullptr);
 }
 
-TEST_CASE("Arena Allocator: Allocated memory is writable and retains values", "[arenaAlloc]")
+TEST_CASE("[Sav]Arena Allocator: Allocated memory is writable and retains values", "[arenaAlloc][sav]")
 {
     Arena arena(sizeof(int) * 4);
     int* arr = arena.AllocateMemory<int>(4);
@@ -47,14 +47,14 @@ TEST_CASE("Arena Allocator: Allocated memory is writable and retains values", "[
         REQUIRE(arr[i] == i * 10);
 }
 
-TEST_CASE("Arena Allocator: GetCapacity returns correct value", "[arenaAlloc]")
+TEST_CASE("[Sav]Arena Allocator: GetCapacity returns correct value", "[arenaAlloc][sav]")
 {
     const size_t cap = MB(2.0f);
     Arena arena(cap);
     REQUIRE(arena.GetCapacity() == cap);
 }
 
-TEST_CASE("Arena Allocator: GetSize tracks committed bytes", "[arenaAlloc]")
+TEST_CASE("[Sav]Arena Allocator: GetSize tracks committed bytes", "[arenaAlloc][sav]")
 {
     Arena arena(MB(1.0f));
 
@@ -67,7 +67,7 @@ TEST_CASE("Arena Allocator: GetSize tracks committed bytes", "[arenaAlloc]")
     REQUIRE(arena.GetSize() == sizeof(int) * 2);
 }
 
-TEST_CASE("Arena Allocator: GetSize accounts for alignment padding", "[arenaAlloc]")
+TEST_CASE("[Sav]Arena Allocator: GetSize accounts for alignment padding", "[arenaAlloc][sav]")
 {
     Arena arena(MB(1.0f));
 
@@ -81,7 +81,7 @@ TEST_CASE("Arena Allocator: GetSize accounts for alignment padding", "[arenaAllo
 
 // ─── Capacity Limits ────────────────────────────────────────────────────────
 
-TEST_CASE("Arena Allocator: Returns nullptr when full and non-extendable", "[arenaAlloc]")
+TEST_CASE("[Sav]Arena Allocator: Returns nullptr when full and non-extendable", "[arenaAlloc][sav]")
 {
     Arena arena(sizeof(int), false);
 
@@ -92,14 +92,14 @@ TEST_CASE("Arena Allocator: Returns nullptr when full and non-extendable", "[are
     REQUIRE(p2 == nullptr);
 }
 
-TEST_CASE("Arena Allocator: Exact capacity allocation succeeds", "[arenaAlloc]")
+TEST_CASE("[Sav]Arena Allocator: Exact capacity allocation succeeds", "[arenaAlloc][sav]")
 {
     Arena arena(sizeof(int) * 4, false);
     int* arr = arena.AllocateMemory<int>(4);
     REQUIRE(arr != nullptr);
 }
 
-TEST_CASE("Arena Allocator: Over-capacity allocation fails when non-extendable", "[arenaAlloc]")
+TEST_CASE("[Sav]Arena Allocator: Over-capacity allocation fails when non-extendable", "[arenaAlloc][sav]")
 {
     Arena arena(sizeof(int) * 4, false);
     int* arr = arena.AllocateMemory<int>(5);
@@ -109,7 +109,7 @@ TEST_CASE("Arena Allocator: Over-capacity allocation fails when non-extendable",
 
 // ─── Extension ──────────────────────────────────────────────────────────────
 
-TEST_CASE("Arena Allocator: Extends to next block when extendable", "[arenaAlloc]")
+TEST_CASE("[Sav]Arena Allocator: Extends to next block when extendable", "[arenaAlloc][sav]")
 {
     Arena arena(sizeof(int), true);
 
@@ -120,7 +120,7 @@ TEST_CASE("Arena Allocator: Extends to next block when extendable", "[arenaAlloc
     REQUIRE(p2 != nullptr);
 }
 
-TEST_CASE("Arena Allocator: Extended blocks hold correct data", "[arenaAlloc]")
+TEST_CASE("[Sav]Arena Allocator: Extended blocks hold correct data", "[arenaAlloc][sav]")
 {
     Arena arena(sizeof(int), true);
 
@@ -134,7 +134,7 @@ TEST_CASE("Arena Allocator: Extended blocks hold correct data", "[arenaAlloc]")
     REQUIRE(*p2 == 222);
 }
 
-TEST_CASE("Arena Allocator: GetCapacity includes extended blocks", "[arenaAlloc]")
+TEST_CASE("[Sav]Arena Allocator: GetCapacity includes extended blocks", "[arenaAlloc][sav]")
 {
     Arena arena(sizeof(int), true);
 
@@ -147,7 +147,7 @@ TEST_CASE("Arena Allocator: GetCapacity includes extended blocks", "[arenaAlloc]
 
 // ─── Alignment ──────────────────────────────────────────────────────────────
 
-TEST_CASE("Arena Allocator: Allocations are correctly aligned", "[arenaAlloc][alignment]")
+TEST_CASE("[Sav]Arena Allocator: Allocations are correctly aligned", "[arenaAlloc][alignment][sav]")
 {
     Arena arena(MB(1.0f));
 
@@ -172,7 +172,7 @@ TEST_CASE("Arena Allocator: Allocations are correctly aligned", "[arenaAlloc][al
     }
 }
 
-TEST_CASE("Arena Allocator: Mixed type allocations are all correctly aligned", "[arenaAlloc][alignment]")
+TEST_CASE("[Sav]Arena Allocator: Mixed type allocations are all correctly aligned", "[arenaAlloc][alignment][sav]")
 {
     Arena arena(MB(1.0f));
 
@@ -190,7 +190,7 @@ TEST_CASE("Arena Allocator: Mixed type allocations are all correctly aligned", "
 
 // ─── Overlap ────────────────────────────────────────────────────────────────
 
-TEST_CASE("Arena Allocator: Consecutive allocations do not overlap", "[arenaAlloc][overlap]")
+TEST_CASE("[Sav]Arena Allocator: Consecutive allocations do not overlap", "[arenaAlloc][overlap][sav]")
 {
     Arena arena(MB(1.0f));
 
@@ -222,7 +222,7 @@ TEST_CASE("Arena Allocator: Consecutive allocations do not overlap", "[arenaAllo
     }
 }
 
-TEST_CASE("Arena Allocator: Writing to one allocation does not corrupt another", "[arenaAlloc][overlap]")
+TEST_CASE("[Sav]Arena Allocator: Writing to one allocation does not corrupt another", "[arenaAlloc][overlap][sav]")
 {
     Arena arena(MB(1.0f));
 
