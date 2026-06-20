@@ -28,10 +28,8 @@ class Arena
     Arena* pNext;       //  Pointer to next Arena block if Arena is extendable
     
     bool bIsExtendable;
-    
-    template <typename T>
-    T* AllocateMemory(size_t inCount);
 
+    
     template<typename T>
     static constexpr size_t AlignUp(size_t inAmountOfBytes) noexcept;
 
@@ -42,6 +40,9 @@ public:
 
     size_t GetCapacity() const;
     size_t GetSize() const;
+    
+    template <typename T>
+    T* AllocateMemory(size_t inCount);
     
 };
 
