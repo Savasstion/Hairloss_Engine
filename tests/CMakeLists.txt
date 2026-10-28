@@ -1,12 +1,11 @@
 add_executable(HairlossTest
-    test_arena_allocator.cpp
-    ${CMAKE_SOURCE_DIR}/src/sandbox/sav/memory/ArenaAllocator.cpp
+    testPlatformConfig.cpp
+    #example: ${CMAKE_SOURCE_DIR}/src/sandbox/sav/memory/ArenaAllocator.cpp
 )
 
 #show these in Solution Explorer
 target_sources(HairlossTest PRIVATE
-    ${CMAKE_SOURCE_DIR}/src/sandbox/diastey/memory/ArenaAllocator.h
-    ${CMAKE_SOURCE_DIR}/src/sandbox/sav/memory/ArenaAllocator.h
+    #${CMAKE_SOURCE_DIR}/src/sandbox/sav/memory/ArenaAllocator.h
 )
 
 target_include_directories(HairlossTest PRIVATE ${CMAKE_SOURCE_DIR}/src)

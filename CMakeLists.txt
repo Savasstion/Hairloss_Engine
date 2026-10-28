@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
- 
+
 project(HairlossEngine
     DESCRIPTION "Game Engine using C++ and SDL3"
     LANGUAGES CXX
@@ -19,8 +19,4 @@ add_subdirectory(src)
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     PROPERTY VS_STARTUP_PROJECT HairlossEngine
-)
-
-target_sources(${PROJECT_NAME} PRIVATE
-    CMakeLists.txt
 )
