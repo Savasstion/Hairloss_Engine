@@ -38,7 +38,6 @@
 
     #define HW_WINDOWS 1
 
-
 #elif defined(__linux__)
 
     #define HW_LINUX 1
