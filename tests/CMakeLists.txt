@@ -1,6 +1,5 @@
 add_executable(HairlossTest
-    testPlatformConfig.cpp
-    #example: ${CMAKE_SOURCE_DIR}/src/sandbox/sav/memory/ArenaAllocator.cpp
+    test.cpp
 )
 
 #show these in Solution Explorer
