@@ -1,7 +1,9 @@
 #pragma once
 
-#include "platformConfig/platformConfigIncludes.h"
+#include "../../appIncludes.h"
 
+#if defined(FW_SDL3)
+#include "win64App.h"
 
 SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
 {
@@ -53,3 +55,4 @@ void SDL_AppQuit(void* pAppState, SDL_AppResult)
 
     SDL_Quit();
 }
+#endif

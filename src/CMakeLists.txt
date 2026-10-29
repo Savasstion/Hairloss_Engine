@@ -1,5 +1,5 @@
 add_executable(${PROJECT_NAME}
-    main.cpp
+    app/platform/win64/win64App.cpp
 )
 
 target_sources(${PROJECT_NAME} PRIVATE
@@ -11,6 +11,9 @@ target_sources(${PROJECT_NAME} PRIVATE
     platformConfig/platform/win64/win64PlatformIncludes.h
     platformConfig/platform/win64/win64PlatformDefines.h
     platformConfig/platform/win64/win64PlatformTypes.h
+    app/appIncludes.h
+    app/platform/win64/win64App.h
+    app/platform/win64/win64AppTypes.h
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE vendor)
