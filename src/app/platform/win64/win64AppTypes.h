@@ -4,7 +4,7 @@
 #if defined(FW_SDL3)
 struct AppState
 {
-    SDL_Window* m_pWindow = nullptr;
+    std::shared_ptr<Window> m_pWindow;
     SDL_Renderer* m_pRenderer = nullptr;
 };
 #endif

@@ -1,19 +1,18 @@
-#pragma once
-
 #include "../../appIncludes.h"
 
 #if defined(FW_SDL3)
-#include "win64App.h"
 
 SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
 {
     if (!SDL_Init(SDL_INIT_VIDEO))
         return SDL_APP_FAILURE;
 
+    // TODO : Use own heap allcoation
     AppState* pState = new AppState();
     *ppAppState = pState;
 
-    pState->m_pWindow = SDL_CreateWindow("Hairloss Engine", 1280, 720, SDL_WINDOW_RESIZABLE);
+    pState->m_pWindow = SDL_CreateWindow(pWindowName, 1280, 720, SDL_WINDOW_RESIZABLE);
+    pState->m_pWindow = std::make_shared<Window>();
     if (!pState->m_pWindow)
         return SDL_APP_FAILURE;
 
