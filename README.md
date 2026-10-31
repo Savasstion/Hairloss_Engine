@@ -51,7 +51,7 @@ Visual Studio presets generate a solution in `build/<preset>/`, which you can al
 
 ```bash
 cmake --build --preset vs2026-x64-debug --target HairlossTest
-ctest --test-dir build/vs2026-x64 -C Debug
+ctest --test-dir project/vs2026-x64 -C Debug
 ```
 
-The same works with any other preset, for example `ninja-x64-debug` and `build/ninja-x64`.
+The same works with any other preset, for example `ninja-x64-debug` and `project/ninja-x64`.
