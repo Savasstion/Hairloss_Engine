@@ -13,12 +13,12 @@ SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
     AppState* pState = new AppState();
     *ppAppState = pState;
 
-    pState->pWindow = SDL_CreateWindow("Hairloss Engine", 1280, 720, SDL_WINDOW_RESIZABLE);
-    if (!pState->pWindow)
+    pState->m_pWindow = SDL_CreateWindow("Hairloss Engine", 1280, 720, SDL_WINDOW_RESIZABLE);
+    if (!pState->m_pWindow)
         return SDL_APP_FAILURE;
 
-    pState->pRenderer = SDL_CreateRenderer(pState->pWindow, nullptr);
-    if (!pState->pRenderer)
+    pState->m_pRenderer = SDL_CreateRenderer(pState->m_pWindow, nullptr);
+    if (!pState->m_pRenderer)
         return SDL_APP_FAILURE;
 
     return SDL_APP_CONTINUE;
@@ -36,9 +36,9 @@ SDL_AppResult SDL_AppIterate(void* pAppState)
 {
     AppState* pState = static_cast<AppState*>(pAppState);
     
-    SDL_SetRenderDrawColor(pState->pRenderer, 30, 30, 30, 255);
-    SDL_RenderClear(pState->pRenderer);
-    SDL_RenderPresent(pState->pRenderer);
+    SDL_SetRenderDrawColor(pState->m_pRenderer, 30, 30, 30, 255);
+    SDL_RenderClear(pState->m_pRenderer);
+    SDL_RenderPresent(pState->m_pRenderer);
 
     return SDL_APP_CONTINUE;
 }
@@ -48,8 +48,8 @@ void SDL_AppQuit(void* pAppState, SDL_AppResult)
     AppState* pState = static_cast<AppState*>(pAppState);
     if (pState)
     {
-        SDL_DestroyRenderer(pState->pRenderer);
-        SDL_DestroyWindow(pState->pWindow);
+        SDL_DestroyRenderer(pState->m_pRenderer);
+        SDL_DestroyWindow(pState->m_pWindow);
         delete pState;
     }
 
