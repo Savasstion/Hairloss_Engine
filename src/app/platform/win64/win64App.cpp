@@ -12,7 +12,7 @@ SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
     *ppAppState = pState;
 
     // Window creation
-    WindowCreationDesc windowCreationDesc
+    WindowCreationDesc windowDesc
     {
         defaultWindowWidth, defaultWindowHeight,
         pDefaultWindowTitle,
@@ -21,7 +21,7 @@ SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
 
     // TODO : Use own heap allcoation
     pState->m_pWindow = std::make_shared<Window>();
-    b8 isWindowCreated = pState->m_pWindow->CreateAppWindow(windowCreationDesc);
+    b8 isWindowCreated = pState->m_pWindow->CreateAppWindow(windowDesc);
     if (!isWindowCreated)
         return SDL_APP_FAILURE;
 
