@@ -1,7 +1,6 @@
 #pragma once
 
-//  Forward declarations
-class Window;
+#include "appIncludes.h"
 
 struct AppState
 {

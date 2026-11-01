@@ -1,6 +1,6 @@
 #include "../../appIncludes.h"
 
-#if defined(FW_SDL3)
+#if defined(OS_WINDOWS) && defined(HW_X64) && defined(FW_SDL3)
 
 SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
 {

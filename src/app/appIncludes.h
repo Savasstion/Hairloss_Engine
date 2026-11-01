@@ -7,5 +7,8 @@
 	#include <SDL3/SDL_main.h>
 #endif
 
-#include "win64App.h"
-#include "win64AppTypes.h"
+#include "appTypes.h"
+
+#if defined(OS_WINDOWS) && defined(HW_X64)
+	#include "win64App.h"
+#endif

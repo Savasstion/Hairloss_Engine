@@ -15,8 +15,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     platformConfig/platform/win64/win64PlatformDefines.h
     platformConfig/platform/win64/win64PlatformTypes.h
     app/appIncludes.h
+    app/appTypes.h
     app/platform/win64/win64App.h
-    app/platform/win64/win64AppTypes.h
     window/windowIncludes.h
     window/windowDefines.h
     window/windowTypes.h
