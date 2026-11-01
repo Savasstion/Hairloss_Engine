@@ -19,6 +19,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     app/platform/win64/win64AppTypes.h
     window/windowIncludes.h
     window/windowDefines.h
+    window/windowTypes.h
     window/platform/win64/win64WindowImpl.h
     window/window.h
 )

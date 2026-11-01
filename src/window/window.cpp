@@ -13,14 +13,20 @@ Window::~Window()
 	Release();
 }
 
-void Window::Clear()
+b8 Window::Clear()
 {
-
+	return true;
 }
 
-void Window::Release()
+b8 Window::Release()
 {
 	m_pWindowImpl.reset();
-
 	Clear();
+
+	return true;
+}
+
+b8 Window::CreateAppWindow(const WindowCreationDesc& desc)
+{
+	return m_pWindowImpl->CreateAppWindow(desc);
 }

@@ -11,12 +11,23 @@ SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
     AppState* pState = new AppState();
     *ppAppState = pState;
 
-    pState->m_pWindow = SDL_CreateWindow(pWindowName, 1280, 720, SDL_WINDOW_RESIZABLE);
+    // Window creation
+    WindowCreationDesc windowCreationDesc
+    {
+        defaultWindowWidth, defaultWindowHeight,
+        pDefaultWindowTitle,
+        defaultWindowFlags
+    };
+
+    // TODO : Use own heap allcoation
     pState->m_pWindow = std::make_shared<Window>();
-    if (!pState->m_pWindow)
+    b8 isWindowCreated = pState->m_pWindow->CreateAppWindow(windowCreationDesc);
+    if (!isWindowCreated)
         return SDL_APP_FAILURE;
 
-    pState->m_pRenderer = SDL_CreateRenderer(pState->m_pWindow, nullptr);
+    // Renderer creation
+    SDL_Window* pWindow = pState->m_pWindow->m_pWindowImpl->m_pWindow.get();
+    pState->m_pRenderer = SDL_CreateRenderer(pWindow, nullptr);
     if (!pState->m_pRenderer)
         return SDL_APP_FAILURE;
 
@@ -48,7 +59,7 @@ void SDL_AppQuit(void* pAppState, SDL_AppResult)
     if (pState)
     {
         SDL_DestroyRenderer(pState->m_pRenderer);
-        SDL_DestroyWindow(pState->m_pWindow);
+        pState->m_pWindow.reset();
         delete pState;
     }
 

@@ -2,14 +2,18 @@
 
 class WindowImpl 
 {
-private:
-	std::shared_ptr<SDL_Window> m_pWindow;
+public:
 	u32 m_width;
 	u32 m_height;
+#if defined(FW_SDL3)
+	std::shared_ptr<SDL_Window> m_pWindow;
 	SDL_WindowFlags m_flags;
-public:
-	WindowImpl(const char* pTitle = pWindowName, const u32 width, const u32 height, const SDL_WindowFlags flags);
+#endif	// FW_SDL3
+
+	WindowImpl();
 	~WindowImpl();
 	void Clear();
 	void Release();
+
+	b8 CreateAppWindow(const WindowCreationDesc& desc);
 };

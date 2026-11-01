@@ -2,11 +2,13 @@
 
 class Window 
 {
-private:
-	std::shared_ptr<WindowImpl> m_pWindowImpl;
 public:
+	std::shared_ptr<WindowImpl> m_pWindowImpl;
+
 	Window();
 	~Window();
-	void Clear();
-	void Release();
+	b8 Clear();
+	b8 Release();
+
+	b8 CreateAppWindow(const WindowCreationDesc& desc);
 };
