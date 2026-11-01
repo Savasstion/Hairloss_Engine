@@ -33,6 +33,7 @@ void WindowImpl::Release()
 b8 WindowImpl::CreateAppWindow(const WindowCreationDesc& desc)
 {
 #if defined(FW_SDL3)
+	// TODO : Check how does this allocate in memory and see if could own heap allocation
 	SDL_Window* pWindowRawPtr = SDL_CreateWindow(desc.m_pTitle, desc.m_width, desc.m_height, desc.m_flags);
 	if (!pWindowRawPtr)
 	{
