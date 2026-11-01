@@ -1,7 +1,7 @@
 #include "../../appIncludes.h"
 
-#if defined(OS_WINDOWS) && defined(HW_X64) && defined(FW_SDL3)
-
+#if defined(OS_WINDOWS) && defined(HW_X64)
+#if defined(FW_SDL3)
 SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
 {
     if (!SDL_Init(SDL_INIT_VIDEO))
@@ -65,4 +65,5 @@ void SDL_AppQuit(void* pAppState, SDL_AppResult)
 
     SDL_Quit();
 }
-#endif
+#endif  //  FW_SDL3
+#endif  //  OS_WINDOWS && HW_X64
