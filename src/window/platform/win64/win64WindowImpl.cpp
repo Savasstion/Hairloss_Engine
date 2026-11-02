@@ -4,11 +4,21 @@
 
 WindowImpl::WindowImpl()
 {
+	DebugLog(
+		"{}: Window constructor called",
+		__FUNCTION__
+	);
+
 	Release();
 }
 
 WindowImpl::~WindowImpl()
 {
+	DebugLog(
+		"{}: Window destructor called",
+		__FUNCTION__
+	);
+
 	Release();
 }
 
@@ -19,6 +29,11 @@ void WindowImpl::Clear()
 #if defined(FW_SDL3)
 	m_flags		= 0;
 #endif	// FW_SDL3
+
+	DebugLog(
+		"{}: Window class variables cleared",
+		__FUNCTION__
+	);
 }
 
 void WindowImpl::Release()
@@ -26,6 +41,11 @@ void WindowImpl::Release()
 #if defined(FW_SDL3)
 	m_pWindow.reset();
 #endif	// FW_SDL3
+
+	DebugLog(
+		"{}: Window class resources released",
+		__FUNCTION__
+	);
 
 	Clear();
 }
@@ -38,8 +58,8 @@ b8 WindowImpl::CreateAppWindow(const WindowCreationDesc& desc)
 	if (!pWindowRawPtr)
 	{
 		// TODO : Use own logging function
-		SDL_Log(
-			"%s: SDL_CreateWindow failed: %s",
+		DebugLogError(
+			"{}: SDL_CreateWindow failed: {}",
 			__FUNCTION__,
 			SDL_GetError()
 		);
@@ -47,10 +67,16 @@ b8 WindowImpl::CreateAppWindow(const WindowCreationDesc& desc)
 		return false;
 	}
 
-	// Assign shared pointer and custom deletor
+	// Assign shared pointer and custom deleter
 	m_pWindow = std::shared_ptr<SDL_Window>(pWindowRawPtr, [](SDL_Window* ptr) { SDL_DestroyWindow(ptr); });
 
 #endif	// FW_SDL3
+
+	DebugLog(
+		"{}: App window is created successfully",
+		__FUNCTION__
+	);
+
 	return true;
 }
 

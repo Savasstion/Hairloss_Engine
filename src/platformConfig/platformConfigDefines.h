@@ -64,3 +64,11 @@
 #endif
 
 #pragma endregion   //  GRAPHICS_API
+
+#pragma region BUILD_MODE
+
+#if defined(_DEBUG) || !defined(NDEBUG)
+#define BUILD_DEBUG 1
+#endif
+
+#pragma endregion   //  BUILD_MODE

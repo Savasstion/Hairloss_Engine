@@ -2,6 +2,7 @@ add_executable(${PROJECT_NAME}
     app/platform/win64/win64App.cpp
     window/window.cpp
     window/platform/win64/win64WindowImpl.cpp
+    logging/logging.cpp
 )
 
 target_sources(${PROJECT_NAME} PRIVATE
@@ -22,6 +23,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     window/windowTypes.h
     window/platform/win64/win64WindowImpl.h
     window/window.h
+    logging/logging.h
+    logging/loggingIncludes.h
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE vendor)

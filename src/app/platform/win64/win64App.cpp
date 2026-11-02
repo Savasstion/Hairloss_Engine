@@ -7,7 +7,7 @@ SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
     if (!SDL_Init(SDL_INIT_VIDEO))
         return SDL_APP_FAILURE;
 
-    // TODO : Use own heap allcoation
+    // TODO : Use own heap allocation
     AppState* pState = new AppState();
     *ppAppState = pState;
 
@@ -19,7 +19,7 @@ SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
         defaultWindowFlags
     };
 
-    // TODO : Use own heap allcoation
+    // TODO : Use own heap allocation
     pState->m_pWindow = std::make_shared<Window>();
     b8 isWindowCreated = pState->m_pWindow->CreateAppWindow(windowDesc);
     if (!isWindowCreated)
@@ -30,6 +30,11 @@ SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
     pState->m_pRenderer = SDL_CreateRenderer(pWindow, nullptr);
     if (!pState->m_pRenderer)
         return SDL_APP_FAILURE;
+
+    DebugLog(
+        "{}: App initialization is successful", 
+        __FUNCTION__
+    );
 
     return SDL_APP_CONTINUE;
 }
@@ -55,6 +60,11 @@ SDL_AppResult SDL_AppIterate(void* pAppState)
 
 void SDL_AppQuit(void* pAppState, SDL_AppResult)
 {
+	DebugLog(
+		"{}: Quitting app",
+		__FUNCTION__
+	);
+
     AppState* pState = static_cast<AppState*>(pAppState);
     if (pState)
     {
