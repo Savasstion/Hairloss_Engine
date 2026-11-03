@@ -8,12 +8,16 @@
 
 #if (defined(_M_X64) && !defined(_M_ARM64EC)) || defined(__x86_64__) || defined(__amd64__)
     #define HW_X64 1
+    #define HW_64BITS 1
 #elif defined(_M_IX86) || defined(__i386__)
     #define HW_X86 1
+    #define HW_32BITS 1
 #elif defined(_M_ARM64) || defined(_M_ARM64EC) || defined(__aarch64__)
     #define HW_ARM64 1
+    #define HW_64BITS 1
 #elif defined(_M_ARM) || defined(__arm__)
     #define HW_ARM32 1
+    #define HW_32BITS 1
 #else
     #error "Unsupported CPU architecture"
 #endif
