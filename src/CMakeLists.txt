@@ -3,6 +3,7 @@ add_executable(${PROJECT_NAME}
     window/window.cpp
     window/platform/win64/win64WindowImpl.cpp
     logging/logging.cpp
+    memory/heap/heap.cpp
 )
 
 target_sources(${PROJECT_NAME} PRIVATE
@@ -25,6 +26,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     window/window.h
     logging/logging.h
     logging/loggingIncludes.h
+    memory/heap/heap.h
+    memory/heap/heapIncludes.h
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE vendor)
