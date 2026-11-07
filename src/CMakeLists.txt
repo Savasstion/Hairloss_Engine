@@ -26,6 +26,9 @@ target_sources(${PROJECT_NAME} PRIVATE
     window/window.h
     logging/logging.h
     logging/loggingIncludes.h
+    memory/memoryTypes.h
+    memory/memoryIncludes.h
+    memory/memoryDefines.h
     memory/heap/heap.h
     memory/heap/heapIncludes.h
 )

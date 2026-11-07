@@ -1,5 +1,5 @@
 #pragma once
 
-#include "../../platformConfig/platformConfigIncludes.h"
+#include "../memoryIncludes.h"
 
 #include "heap.h"
