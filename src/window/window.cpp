@@ -2,7 +2,7 @@
 
 Window::Window()
 {
-	Release();
+	Clear();
 
 	// TODO : Use own heap implementation to allocate memory
 	m_pWindowImpl = std::make_shared<WindowImpl>();

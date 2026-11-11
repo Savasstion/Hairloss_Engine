@@ -9,7 +9,7 @@ WindowImpl::WindowImpl()
 		__FUNCTION__
 	);
 
-	Release();
+	Clear();
 }
 
 WindowImpl::~WindowImpl()
