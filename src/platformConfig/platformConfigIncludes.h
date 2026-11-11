@@ -7,6 +7,7 @@
 #include <print>
 #include <format>
 #include <string_view>
+#include <cstddef>
 
 #include "../logging/loggingIncludes.h"
 #include "../memory/memoryIncludes.h"
