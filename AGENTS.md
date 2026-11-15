@@ -429,6 +429,29 @@ Every engine class follows this pattern:
 - Pass structs and descs **by `const&`**: `b8 CreateAppWindow(const WindowCreationDesc& desc);`.
 - Group creation parameters into a `<Thing>CreationDesc` struct in `<module>Types.h` instead of
   writing long parameter lists.
+- **Always create desc structs with curly-brace initialization** so every member is
+  zeroed. Any member without an explicit value is value-initialized (`0`, `nullptr`, `false`,
+  or the first enum value), while a plain `WindowCreationDesc windowDesc;` leaves members as
+  indeterminate garbage that the impl would then read.
+  ```cpp
+  // Good: listed values, every remaining member zeroed
+  WindowCreationDesc windowDesc
+  {
+  	defaultWindowWidth, defaultWindowHeight,
+  	pDefaultWindowTitle,
+  	defaultWindowFlags
+  };
+
+  // Good: everything zeroed, then fill in fields
+  WindowCreationDesc windowDesc{};
+  windowDesc.m_width		= defaultWindowWidth;
+  windowDesc.m_height		= defaultWindowHeight;
+
+  // Bad: members are uninitialized
+  WindowCreationDesc windowDesc;
+  ```
+  To keep this working, desc structs stay plain aggregates: public members only, no
+  constructors, no virtuals. Never zero them with `memset`.
 - Include units in parameter names (`capacityInBytes`, `sizeInBytes`).
 - Leave unused parameters **unnamed** (`SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)`).
 - Use guard clauses: validate, log, `return false`. Then do the work, then `return true`.
@@ -560,6 +583,7 @@ released). Never use `printf`/`std::cout` directly.
 - [ ] No `OS_`/`HW_` checks in abstraction classes. Framework code only in impls/platformConfig
 - [ ] Every `#endif` commented with its condition. Regions closed with a matching comment
 - [ ] Constructor→`Clear()`, destructor→`Release()`, `Release()`→`Clear()`
+- [ ] Desc structs created with `{ ... }` / `{}` initialization, never left uninitialized
 - [ ] Fallible functions return `b8`, log failures with `"{}: ..."` + `__FUNCTION__`
 - [ ] New files registered in `src/CMakeLists.txt` (and `tests/CMakeLists.txt` if relevant)
 - [ ] No edits under `vendor/` or `project/`. Existing `// TODO :` markers preserved
