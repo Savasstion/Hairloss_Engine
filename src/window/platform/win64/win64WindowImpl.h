@@ -12,8 +12,9 @@ public:
 
 	WindowImpl();
 	~WindowImpl();
-	void Clear();
-	void Release();
+	b8 Clear();
+	b8 Release();
 
 	b8 CreateAppWindow(const WindowCreationDesc& desc);
-};
+	void* GetNativeWindowHandle() const;
+};

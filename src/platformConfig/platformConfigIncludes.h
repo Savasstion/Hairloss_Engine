@@ -8,6 +8,7 @@
 #include <format>
 #include <string_view>
 #include <cstddef>
+#include <concepts>
 
 #include "../logging/loggingIncludes.h"
 #include "../memory/memoryIncludes.h"

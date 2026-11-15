@@ -30,3 +30,8 @@ b8 Window::CreateAppWindow(const WindowCreationDesc& desc)
 {
 	return m_pWindowImpl->CreateAppWindow(desc);
 }
+
+void* Window::GetNativeWindowHandle() const
+{
+	return m_pWindowImpl->GetNativeWindowHandle();
+}

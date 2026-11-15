@@ -11,4 +11,5 @@ public:
 	b8 Release();
 
 	b8 CreateAppWindow(const WindowCreationDesc& desc);
-};
+	void* GetNativeWindowHandle() const;
+};

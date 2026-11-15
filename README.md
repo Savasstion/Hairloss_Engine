@@ -43,7 +43,7 @@ cmake --build --preset vs2026-x64-release
 cmake --build --preset ninja-x64-debug
 ```
 
-Visual Studio presets generate a solution in `build/<preset>/`, which you can also open directly.
+Visual Studio presets generate a solution in `project/<preset>/`, which you can also open directly.
 
 ## Tests
 
@@ -54,4 +54,4 @@ cmake --build --preset vs2026-x64-debug --target HairlossTest
 ctest --test-dir project/vs2026-x64 -C Debug
 ```
 
-The same works with any other preset, for example `ninja-x64-debug` and `project/ninja-x64`.
+The same works with any other preset, for example `ninja-x64-debug` and `project/ninja-x64`.

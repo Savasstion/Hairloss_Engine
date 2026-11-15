@@ -22,7 +22,7 @@ WindowImpl::~WindowImpl()
 	Release();
 }
 
-void WindowImpl::Clear()
+b8 WindowImpl::Clear()
 {
 	m_width		= 0;
 	m_height	= 0;
@@ -34,9 +34,11 @@ void WindowImpl::Clear()
 		"{}: Window class variables cleared",
 		__FUNCTION__
 	);
+
+	return true;
 }
 
-void WindowImpl::Release()
+b8 WindowImpl::Release()
 {
 #if defined(FW_SDL3)
 	m_pWindow.reset();
@@ -48,6 +50,8 @@ void WindowImpl::Release()
 	);
 
 	Clear();
+
+	return true;
 }
 
 b8 WindowImpl::CreateAppWindow(const WindowCreationDesc& desc)
@@ -80,4 +84,13 @@ b8 WindowImpl::CreateAppWindow(const WindowCreationDesc& desc)
 	return true;
 }
 
-#endif
+void* WindowImpl::GetNativeWindowHandle() const
+{
+#if defined(FW_SDL3)
+	return m_pWindow.get();
+#else
+	return nullptr;
+#endif	// FW_SDL3
+}
+
+#endif	// OS_WINDOWS && HW_X64
