@@ -6,10 +6,10 @@ add_subdirectory(Catch2)
 
 add_library(vendor INTERFACE)
 target_link_libraries(vendor INTERFACE
-    SDL3::SDL3-static
+	SDL3::SDL3-static
 )
 
 add_library(tests INTERFACE)
 target_link_libraries(tests INTERFACE
-    Catch2::Catch2WithMain
+	Catch2::Catch2WithMain
 )

@@ -1,13 +1,13 @@
 add_executable(HairlossTest
-    ../src/window/window.cpp
-    ../src/window/platform/win64/win64WindowImpl.cpp
-    windowTest.cpp
+	../src/window/window.cpp
+	../src/window/platform/win64/win64WindowImpl.cpp
+	windowTest.cpp
 )
 
 #show these in Solution Explorer
 target_sources(HairlossTest PRIVATE
-    #${CMAKE_SOURCE_DIR}/src/sandbox/sav/memory/ArenaAllocator.h
-    testIncludes.h
+	#${CMAKE_SOURCE_DIR}/src/sandbox/sav/memory/ArenaAllocator.h
+	testIncludes.h
 )
 
 target_include_directories(HairlossTest PRIVATE ${CMAKE_SOURCE_DIR}/src)

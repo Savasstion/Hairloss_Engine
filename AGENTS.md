@@ -247,7 +247,12 @@ Consequences:
 
 - **Indentation: tabs**, everywhere. Spaces are fine for alignment *after* code, such as in
   column-aligned comment tables like `//  HW_X86      - 32-bit x86`.
-- **Line endings: CRLF.** (The repo is developed on Windows/Visual Studio.)
+- **Line endings: LF**, enforced by `.gitattributes` (`* text=auto eol=lf`) so every OS and
+  IDE gets the same files no matter what `core.autocrlf` is set to. Only Windows-only formats
+  (`.bat`, `.cmd`, `.ps1`, `.sln`, `.vcxproj`) use CRLF.
+- **`.editorconfig`** sets indentation, line endings, UTF-8, the final newline and trailing
+  whitespace for every editor (Visual Studio, VS Code, CLion, Rider). Don't override it with
+  IDE-specific settings. JSON/YAML use 2-space indentation, and `vendor/` keeps its own style.
 - **Braces: Allman.** Opening brace on its own line for classes, structs, enums, functions,
   `if`/`switch`/loops.
   ```cpp
@@ -522,6 +527,11 @@ released). Never use `printf`/`std::cout` directly.
 - Platform `.cpp` files are currently listed unconditionally. They compile to nothing on other
   platforms because their bodies are platform-guarded. When a second platform lands, gate
   platform source lists in CMake as well (e.g. `if(WIN32)`).
+- **Source encoding is UTF-8.** The root `CMakeLists.txt` adds `/utf-8` for MSVC so non-ASCII
+  text (e.g. Japanese string literals) compiles the same on every machine, whatever its system
+  code page. GCC/Clang already default to UTF-8. Save files as UTF-8 without a BOM (see
+  `.editorconfig`). Engine-wide compile flags go in the root `CMakeLists.txt` *after*
+  `add_subdirectory(vendor)`, so vendored code keeps its own flags.
 - Configure/build via presets (`cmake --preset vs2026-x64`, `cmake --build --preset vs2026-x64-debug`).
   Build output goes to `project/<preset>/`. Don't commit it.
 
@@ -541,7 +551,7 @@ released). Never use `printf`/`std::cout` directly.
 ## 11. Agent checklist (before you finish an edit)
 
 - [ ] Used `s8..s64 / u8..u64 / b8 / f32 / f64 / c8`, not raw primitives
-- [ ] Tabs, Allman braces, aligned `Clear()` assignments, multi-line log calls
+- [ ] Tabs, LF line endings, Allman braces, aligned `Clear()` assignments, multi-line log calls
 - [ ] `m_` members, `p`/`pp` pointers, `is` booleans, PascalCase methods, `UNDEFINED` last in enums
 - [ ] `.cpp` includes only its module's `Includes.h`. Leaf headers have no includes
 - [ ] No raw compiler/OS macros outside `platformConfigDefines.h`; `#if defined(...)` everywhere
