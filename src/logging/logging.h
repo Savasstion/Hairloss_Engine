@@ -81,3 +81,7 @@ void DebugLogError(std::format_string<Args...> fmtStr, Args&&... args)
 #endif
 };
 #pragma endregion	//	DEBUG_LOGGING
+
+#pragma region	//	DEV_LOGGING
+void LogNotImplemented(const char* pFunctionName);
+#pragma endregion	//	DEV_LOGGING

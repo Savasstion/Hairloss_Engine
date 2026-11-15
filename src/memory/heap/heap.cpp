@@ -92,6 +92,6 @@ std::byte* Heap::AllocateHeapOnCPU(const size_t sizeInBytes)
 
 std::byte* Heap::AllocateHeapOnGPU(const size_t sizeInBytes)
 {
-	// TODO : Make a NOT_IMPLEMENTED() function
+	LogNotImplemented(__FUNCTION__);
 	return nullptr;
 }
