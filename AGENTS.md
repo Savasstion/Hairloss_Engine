@@ -365,39 +365,41 @@ Always use `enum class`, never plain `enum`.
 
 ### 6.1 Class shape
 
+Reference: `WindowImpl` in `src/window/platform/win64/win64WindowImpl.h`, shown here with
+section comments added:
+
 ```cpp
 #pragma once
 
-class Heap
+class WindowImpl
 {
 public:
-	// 1. Data members first (public)
-	std::byte* m_pHeapStart;
-	size_t m_capacity;
-	b8 m_isAllocated;
-	AllocatorType m_allocatorType;
-	MemoryPhysicalLocation m_memoryLocation;
+	// 1. Data members first (public): platform-common, then framework-specific
+	u32 m_width;
+	u32 m_height;
+#if defined(FW_SDL3)
+	std::shared_ptr<SDL_Window> m_pWindow;
+	SDL_WindowFlags m_flags;
+#endif	// FW_SDL3
 
 	// 2. Lifecycle
-	Heap();
-	~Heap();
+	WindowImpl();
+	~WindowImpl();
 	b8 Clear();
 	b8 Release();
 
 	// 3. Public API
-	b8 AllocateHeap(const size_t& capacityInBytes);
-private:
-	// 4. Private helpers
-	b8 AllocateHeapCapacity();
-	std::byte* AllocateHeapOnCPU(const size_t sizeInBytes);
-	std::byte* AllocateHeapOnGPU(const size_t sizeInBytes);
+	b8 CreateAppWindow(const WindowCreationDesc& desc);
+	void* GetNativeWindowHandle() const;
 };
 ```
 
 - Data members are **public** and declared first, without in-class initialisers.
   `Clear()` sets their values. (Plain data structs such as `AppState` may use in-class
   initialisers like `= nullptr`.)
-- Framework-specific members are wrapped in `#if defined(FW_...)` ... `#endif	// FW_...`.
+- Framework-specific members are wrapped in `#if defined(FW_...)` ... `#endif	// FW_...`,
+  after the platform-common members.
+- Private helpers, if any, go last under `private:` (see `Heap` in `src/memory/heap/heap.h`).
 - No virtual functions or inheritance for platform abstraction (see §2.2).
 - Declare only, never define, in the header. Templates are the exception (`logging.h`).
 - Write method definitions in the `.cpp` in the same order as the header.
