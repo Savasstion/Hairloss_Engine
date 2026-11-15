@@ -2,7 +2,7 @@
 
 #include "../platformConfig/platformConfigIncludes.h"
 
-#include "memoryDefines.h"
 #include "memoryTypes.h"
+#include "memoryUtils.h"
 
 #include "heap/heapIncludes.h"

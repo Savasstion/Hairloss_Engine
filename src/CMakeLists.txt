@@ -28,7 +28,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 	logging/loggingIncludes.h
 	memory/memoryTypes.h
 	memory/memoryIncludes.h
-	memory/memoryDefines.h
+	memory/memoryUtils.h
 	memory/heap/heap.h
 	memory/heap/heapIncludes.h
 )

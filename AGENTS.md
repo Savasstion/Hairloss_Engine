@@ -35,6 +35,7 @@ src/
 │   └── platform/win64/      # win64WindowImpl.h/.cpp (platform implementation)
 ├── logging/                 # Log / DebugLog family (std::print based)
 └── memory/                  # Memory types, byte helpers
+    ├── memoryTypes.h / memoryUtils.h / memoryIncludes.h
     └── heap/                # Heap (sub-module with its own Includes header)
 ```
 
@@ -183,18 +184,22 @@ Every module (`src/<module>/`) and sub-module (`src/<module>/<sub>/`) uses this 
 | File | Contents |
 |---|---|
 | `<module>Includes.h` | **The only header anyone includes for this module.** Pulls in dependencies in the correct order. |
-| `<module>Defines.h` | `constexpr` constants, `constexpr` helper functions, module macros (e.g. `defaultWindowWidth`, `KB()/MB()/GB()`) |
+| `<module>Defines.h` | Macros and `constexpr` constants only: values that act like definitions or guards (e.g. `defaultWindowWidth`, `defaultWindowFlags`, `HW_`/`OS_` macros). **No functions.** |
 | `<module>Types.h` | `enum class`es, plain `struct`s / creation descs (e.g. `WindowCreationDesc`, `AllocatorType`) |
+| `<module>Utils.h` | Free utility/helper functions for the module (e.g. `KB()/MB()/GB()` in `memoryUtils.h`). Defined in the header, so each must be a template, `constexpr` or `inline`. |
 | `<module>.h` / `<module>.cpp` | The abstraction class |
 | `platform/<tag>/<tag><Module>Impl.h/.cpp` | Platform implementation class |
 
-Files are created only when needed. For example, `logging/` has no Defines/Types, and
-`heap/` only has `heap.h/.cpp` + `heapIncludes.h`.
+Files are created only when needed. For example, `logging/` has no Defines/Types/Utils,
+`memory/` has Types and Utils but no Defines, and `heap/` only has `heap.h/.cpp` + `heapIncludes.h`.
+
+Rule of thumb: if it's called like a function (`GB(1.0)`), it goes in Utils. If it's a name for
+a value or a compile-time switch (`defaultWindowWidth`, `OS_WINDOWS`), it goes in Defines.
 
 ### 3.2 Include rules
 
 - Every header starts with `#pragma once` (no include guards).
-- **Leaf headers** (`<module>.h`, `<module>Types.h`, `<module>Defines.h`, impl headers) contain
+- **Leaf headers** (`<module>.h`, `<module>Types.h`, `<module>Defines.h`, `<module>Utils.h`, impl headers) contain
   **no `#include`s**. They rely on the module's `Includes.h` having included everything first.
   Don't add includes to them.
 - **Every `.cpp` includes exactly one header: its own module's `Includes.h`**, by relative path:
@@ -208,7 +213,8 @@ Files are created only when needed. For example, `logging/` has no Defines/Types
      sub-module, e.g. `heapIncludes.h` → `../memoryIncludes.h`)
   2. Other engine modules' `Includes.h` this module depends on
   3. Framework headers if this module specifically needs them (inside `#if defined(FW_...)`)
-  4. `<module>Defines.h`, then `<module>Types.h`
+  4. `<module>Defines.h`, then `<module>Types.h`, then `<module>Utils.h` (Utils may use the
+     module's constants and types)
   5. Platform impl header(s) inside platform guards
   6. `<module>.h` (abstraction) last
   7. Sub-module `Includes.h` files (e.g. `memoryIncludes.h` includes `heap/heapIncludes.h`)
@@ -401,7 +407,8 @@ public:
   after the platform-common members.
 - Private helpers, if any, go last under `private:` (see `Heap` in `src/memory/heap/heap.h`).
 - No virtual functions or inheritance for platform abstraction (see §2.2).
-- Declare only, never define, in the header. Templates are the exception (`logging.h`).
+- Declare only, never define, in the header. The exceptions are templates (`logging.h`) and the
+  `constexpr`/`inline` helpers in `<module>Utils.h`.
 - Write method definitions in the `.cpp` in the same order as the header.
 
 ### 6.2 Lifecycle idiom: Clear / Release
@@ -461,7 +468,7 @@ Every engine class follows this pattern:
   Don't write separate overloads for different numeric types (e.g. `f64` and `u64`
   versions of one function): an `int` argument converts equally well to both, so the call is
   ambiguous. Write one template and constrain it with a `requires` clause on its own
-  tab-indented line. Branch on the type inside the body (see `memoryDefines.h`):
+  tab-indented line. Branch on the type inside the body (see `memoryUtils.h`):
   ```cpp
   template<typename T>
   	requires std::integral<T> || std::floating_point<T>
@@ -493,7 +500,7 @@ Every engine class follows this pattern:
   (`memory/heap`, `AllocatorType`, `MemoryPhysicalLocation`). Existing `// TODO : Use own heap
   allocation` markers show where. Keep allocation sites easy to find, and don't spread new
   allocation strategies around.
-- Use `KB()/MB()/GB()` from `memoryDefines.h` for byte sizes. Never write `1024 * 1024` by hand.
+- Use `KB()/MB()/GB()` from `memoryUtils.h` for byte sizes. Never write `1024 * 1024` by hand.
   They are constrained templates, so any integer or floating-point argument works
   (`KB(4)`, `MB(someU32)`, `GB(1.5)`). Integer arguments use a bit shift
   (`<< 10 / 20 / 30`), and floating-point arguments multiply and then truncate to `u64`.
