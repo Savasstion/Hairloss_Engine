@@ -6,6 +6,8 @@ public:
 	std::byte* m_pHeapStart;
 	size_t m_capacity;
 	b8 m_isAllocated;
+	AllocatorType m_allocatorType;
+	MemoryPhysicalLocation m_memoryLocation;
 
 	Heap();
 	~Heap();

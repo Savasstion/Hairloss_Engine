@@ -15,7 +15,10 @@ b8 Heap::Clear()
 	m_pHeapStart		= nullptr;
 	m_capacity			= 0;
 	m_isAllocated		= false;
+	m_allocatorType		= AllocatorType::UNDEFINED;
+	m_memoryLocation	= MemoryPhysicalLocation::UNDEFINED;
 
+	return true;
 }
 
 b8 Heap::Release()
@@ -26,6 +29,8 @@ b8 Heap::Release()
 	}
 
 	Clear();
+
+	return true;
 }
 
 b8 Heap::AllocateHeap(const size_t& capacityInBytes)
@@ -52,7 +57,19 @@ b8 Heap::AllocateHeap(const size_t& capacityInBytes)
 
 b8 Heap::AllocateHeapCapacity()
 {
-	m_pHeapStart = new std::byte[m_capacity];
+	switch (m_memoryLocation)
+	{
+	case MemoryPhysicalLocation::CPU:
+		m_pHeapStart = new std::byte[m_capacity];
+		break;
+	case MemoryPhysicalLocation::GPU:
+		m_pHeapStart = nullptr;
+		break;
+	case MemoryPhysicalLocation::UNDEFINED:
+		m_pHeapStart = nullptr;
+		break;
+	}
+	
 	if (!m_pHeapStart)
 	{
 		DebugLogError(

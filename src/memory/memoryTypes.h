@@ -9,6 +9,6 @@ enum class MemoryPhysicalLocation
 
 enum class AllocatorType
 {
-	BumpAllocator,
-	Undefined
+	BUMP_ALLOCATOR,
+	UNDEFINED
 };
