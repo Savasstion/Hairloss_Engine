@@ -25,7 +25,7 @@ b8 Heap::Release()
 {
 	if (m_pHeapStart)
 	{
-		delete m_pHeapStart;
+		delete[] m_pHeapStart;
 	}
 
 	Clear();
@@ -60,7 +60,7 @@ b8 Heap::AllocateHeapCapacity()
 	switch (m_memoryLocation)
 	{
 	case MemoryPhysicalLocation::CPU:
-		m_pHeapStart = new std::byte[m_capacity];
+		m_pHeapStart = AllocateHeapOnCPU(m_capacity);
 		break;
 	case MemoryPhysicalLocation::GPU:
 		m_pHeapStart = nullptr;
@@ -83,4 +83,15 @@ b8 Heap::AllocateHeapCapacity()
 	m_isAllocated = true;
 
 	return true;
+}
+
+std::byte* Heap::AllocateHeapOnCPU(const size_t sizeInBytes)
+{
+	return new std::byte[sizeInBytes];
+}
+
+std::byte* Heap::AllocateHeapOnGPU(const size_t sizeInBytes)
+{
+	// TODO : Make a NOT_IMPLEMENTED() function
+	return nullptr;
 }

@@ -16,4 +16,6 @@ public:
 	b8 AllocateHeap(const size_t& capacityInBytes);
 private:
 	b8 AllocateHeapCapacity();
+	std::byte* AllocateHeapOnCPU(const size_t sizeInBytes);
+	std::byte* AllocateHeapOnGPU(const size_t sizeInBytes);
 };
