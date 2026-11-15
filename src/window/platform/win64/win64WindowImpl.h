@@ -17,4 +17,4 @@ public:
 
 	b8 CreateAppWindow(const WindowCreationDesc& desc);
 	void* GetNativeWindowHandle() const;
-};
+};

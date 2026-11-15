@@ -93,4 +93,4 @@ void* WindowImpl::GetNativeWindowHandle() const
 #endif	// FW_SDL3
 }
 
-#endif	// OS_WINDOWS && HW_X64
+#endif	// OS_WINDOWS && HW_X64

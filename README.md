@@ -54,4 +54,4 @@ cmake --build --preset vs2026-x64-debug --target HairlossTest
 ctest --test-dir project/vs2026-x64 -C Debug
 ```
 
-The same works with any other preset, for example `ninja-x64-debug` and `project/ninja-x64`.
+The same works with any other preset, for example `ninja-x64-debug` and `project/ninja-x64`.

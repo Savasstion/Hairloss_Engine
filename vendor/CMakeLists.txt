@@ -12,4 +12,4 @@ target_link_libraries(vendor INTERFACE
 add_library(tests INTERFACE)
 target_link_libraries(tests INTERFACE
 	Catch2::Catch2WithMain
-)
+)

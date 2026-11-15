@@ -76,4 +76,4 @@ void SDL_AppQuit(void* pAppState, SDL_AppResult)
 	SDL_Quit();
 }
 #endif	// FW_SDL3
-#endif	// OS_WINDOWS && HW_X64
+#endif	// OS_WINDOWS && HW_X64

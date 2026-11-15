@@ -7,4 +7,4 @@ struct AppState
 	// TODO : Make own Graphic System
 	SDL_Renderer* m_pRenderer = nullptr;
 #endif	// FW_SDL3
-};
+};
