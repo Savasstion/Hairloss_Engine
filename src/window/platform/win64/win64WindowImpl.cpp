@@ -61,7 +61,6 @@ b8 WindowImpl::CreateAppWindow(const WindowCreationDesc& desc)
 	SDL_Window* pWindowRawPtr = SDL_CreateWindow(desc.m_pTitle, desc.m_width, desc.m_height, desc.m_flags);
 	if (!pWindowRawPtr)
 	{
-		// TODO : Use own logging function
 		DebugLogError(
 			"{}: SDL_CreateWindow failed: {}",
 			__FUNCTION__,
