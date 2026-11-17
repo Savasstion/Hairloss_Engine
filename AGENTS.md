@@ -1,290 +1,182 @@
 # AGENTS.md — Hairloss Engine
 
-Guidance for AI agents (and humans) reading, writing, or editing code in this repository.
-**Read this whole file before making changes.** When in doubt, imitate the existing code in
-`src/window/` and `src/memory/heap/`. They are the reference implementations of every pattern below.
+Rules for anyone (AI or human) editing this repo. **Read it all before changing code.** When unsure,
+copy the patterns in `src/window/` and `src/memory/cpuHeap/`.
 
 ---
 
-## 1. Project at a glance
+## 1. Project
 
 | | |
 |---|---|
 | Goal | Cross-platform, cross-framework, modular C++ game engine |
-| Language | C++23 (`CMAKE_CXX_STANDARD 23`, no compiler extensions) |
+| Language | C++23, no compiler extensions |
 | Build | CMake ≥ 3.28 (≥ 4.2 for VS2026), presets in `CMakePresets.json`, output in `project/<preset>/` |
-| Current target | Windows x64 (`win64`) via SDL3 |
-| Planned targets | Linux, Xbox One, Xbox Series X\|S; ARM and x86 are detected too |
-| Frameworks | SDL3 (`FW_SDL3`). The architecture leaves room for others |
+| Targets | Now: Windows x64 (`win64`) via SDL3. Planned: Linux, Xbox One, Xbox Series X\|S |
 | Graphics API (planned) | Vulkan on Windows/Linux, DX12 on Xbox |
-| Vendored deps | `vendor/SDL` (static), `vendor/Catch2` (git submodules). **Never edit vendor code.** |
-| Tests | Catch2 v3, `tests/`, target `HairlossTest`, run with `ctest` |
+| Vendored | `vendor/SDL` (static), `vendor/Catch2` (submodules). **Never edit `vendor/`** |
+| Tests | Catch2 v3 in `tests/`, target `HairlossTest`, run with `ctest` |
+| Design docs | `docs/design/heapArchitecture.md` (CPU/GPU heaps, allocators) |
 
 ```
 src/
-├── platformConfig/          # Platform/framework detection, primitive typedefs, global include hub
-│   ├── platformConfigDefines.h
-│   ├── platformConfigTypes.h
-│   ├── platformConfigIncludes.h
-│   └── platform/win64/      # win64PlatformDefines.h / Includes.h / Types.h
-├── app/                     # Entry point + AppState
-│   └── platform/win64/      # win64App.h/.cpp (SDL main callbacks)
-├── window/                  # Window abstraction
-│   ├── window.h/.cpp        # Platform-agnostic abstraction
-│   ├── windowDefines.h / windowTypes.h / windowIncludes.h
-│   └── platform/win64/      # win64WindowImpl.h/.cpp (platform implementation)
-├── logging/                 # Log / DebugLog family (std::print based)
-└── memory/                  # Memory types, byte helpers
-    ├── memoryTypes.h / memoryUtils.h / memoryIncludes.h
-    └── heap/                # Heap (sub-module with its own Includes header)
+├── platformConfig/        # Platform macros, primitive typedefs, global include hub
+│   └── platform/win64/    # win64PlatformDefines/Includes/Types.h (OS + framework headers)
+├── app/                   # Entry point
+│   ├── app.h/.cpp         # GetAppState(): the single static AppState (platform agnostic)
+│   ├── appDefines.h / appTypes.h / appIncludes.h
+│   └── platform/win64/    # win64App.h/.cpp (SDL main callbacks)
+├── window/                # Window abstraction + platform/win64/win64WindowImpl
+├── logging/               # Log / DebugLog family
+└── memory/                # memoryTypes.h / memoryUtils.h / memoryIncludes.h
+    ├── cpuHeap/           # CpuHeap + platform/win64/win64CpuHeapImpl (VirtualAlloc)
+    └── allocator/         # Allocator, BumpAllocator, FreeListAllocator, CpuHeapAllocator, CpuMemoryResource
 ```
 
 ---
 
 ## 2. Cross-platform architecture
 
-### 2.1 Three axes, chosen at compile time by macros
-
-Platform selection is **compile-time only**. There are no virtual interfaces, no runtime
-dispatch, and no factory. Every axis is a macro defined in
+### 2.1 Compile-time macros only
+No runtime dispatch, factories or virtual interfaces for platforms. Everything is decided in
 `src/platformConfig/platformConfigDefines.h`:
 
-| Prefix | Meaning | Current values |
+| Prefix | Meaning | Values |
 |---|---|---|
-| `HW_` | CPU architecture / hardware / console | `HW_X64`, `HW_X86`, `HW_ARM64`, `HW_ARM32`, `HW_64BITS`, `HW_32BITS`, `HW_XONE`, `HW_XSX` |
+| `HW_` | CPU / hardware / console | `HW_X64`, `HW_X86`, `HW_ARM64`, `HW_ARM32`, `HW_64BITS`, `HW_32BITS`, `HW_XONE`, `HW_XSX` |
 | `OS_` | Operating system | `OS_WINDOWS`, `OS_LINUX` |
-| `FW_` | Engine framework / middleware layer | `FW_SDL3` |
+| `FW_` | Framework | `FW_SDL3` |
 | `GAPI_` | Graphics API | `GAPI_VULKAN`, `GAPI_DX12` |
 | `BUILD_` | Build mode | `BUILD_DEBUG` |
 
-Rules:
-- Macros are defined as `1` (`#define OS_WINDOWS 1`) and **always tested with
-  `#if defined(X)`**. Never use `#ifdef` and never test the value.
-- Raw compiler macros (`_WIN64`, `__linux__`, `_M_X64`, `_DEBUG`, ...) may appear **only** in
-  `platformConfigDefines.h`. Everywhere else, use the engine macros.
-- A **platform** is a combination of `OS_`/`HW_` macros. It is identified by a short
-  lowercase **platform tag** used in folder and file names:
+- Define as `1`, test only with `#if defined(X)`. Never `#ifdef`, never test the value.
+- Raw compiler macros (`_WIN64`, `__linux__`, `_DEBUG`, ...) appear **only** in `platformConfigDefines.h`.
+- Frameworks are chosen in its `ENGINE_FRAMEWORKS` region, graphics APIs in `GRAPHICS_API`. Never locally.
+- A **platform tag** names an `OS_`/`HW_` combination and is used in folder/file names:
+  `win64` = `defined(OS_WINDOWS) && defined(HW_X64)`. New platforms add a tag and condition.
+- Framework defines needed before framework headers (e.g. `SDL_MAIN_USE_CALLBACKS`) go in
+  `platform/<tag>/<tag>PlatformDefines.h` inside `#if defined(FW_...)`.
 
-  | Platform tag | Condition |
-  |---|---|
-  | `win64` | `defined(OS_WINDOWS) && defined(HW_X64)` |
-  | *(future)* e.g. `linux64`, `xone`, `xsx` | add a matching condition |
+### 2.2 Abstraction class + platform impl (compile-time pimpl)
+Each platform-dependent subsystem has two classes:
 
-- Which **framework** a platform compiles is decided centrally in the `ENGINE_FRAMEWORKS`
-  region of `platformConfigDefines.h` (e.g. `FW_SDL3` for Windows/Linux/Xbox). Which **graphics
-  API** is decided in the `GRAPHICS_API` region. Code never decides this locally.
-- Framework-specific `#define`s that must exist before framework headers are included go in
-  `platform/<tag>/<tag>PlatformDefines.h`, inside a `#if defined(FW_...)` block. For example,
-  `SDL_MAIN_USE_CALLBACKS`.
-
-### 2.2 Abstraction class + platform implementation class (compile-time pimpl)
-
-Every platform-dependent subsystem is split into two classes:
-
-1. **Abstraction class**, e.g. `Window` in `src/<module>/<module>.h/.cpp`
-   - Platform-agnostic. Contains **no** `OS_`/`HW_` checks and ideally no `FW_` checks.
-   - Owns its implementation through a pointer member: `std::shared_ptr<WindowImpl> m_pWindowImpl;`
-   - Creates the impl in its constructor and releases it in `Release()`.
-   - Its public API **forwards** to the impl:
-     ```cpp
-     b8 Window::CreateAppWindow(const WindowCreationDesc& desc)
-     {
-     	return m_pWindowImpl->CreateAppWindow(desc);
-     }
-     ```
-   - This is the class the rest of the engine and the tests use.
-
-2. **Platform implementation class**, e.g. `WindowImpl` in
-   `src/<module>/platform/<tag>/<tag><Module>Impl.h/.cpp`
-   - **The class name is the same on every platform** (`WindowImpl`, not `Win64WindowImpl`).
-     Only the file name and folder carry the platform tag. Because exactly one platform's header
-     is ever included, the abstraction class binds to the right implementation with no
-     inheritance or virtuals.
-   - Has the same method names and signatures that the abstraction forwards to.
-   - The whole `.cpp` body is wrapped in the platform guard:
-     ```cpp
-     #include "../../windowIncludes.h"
-
-     #if defined(OS_WINDOWS) && defined(HW_X64)
-     ...
-     #endif	// OS_WINDOWS && HW_X64
-     ```
-   - **Framework code lives here**, nested inside `#if defined(FW_SDL3)` blocks, including
-     framework-typed members (`std::shared_ptr<SDL_Window> m_pWindow; SDL_WindowFlags m_flags;`).
-   - Platform-common members (`u32 m_width; u32 m_height;`) sit outside framework blocks.
-
-3. **Selection happens in the module's Includes header**, never in the abstraction:
+1. **Abstraction** (`Window`, in `<module>.h/.cpp`): platform-agnostic, no `OS_`/`HW_`/`FW_` checks.
+   This is what the engine and tests use.
+   - Holds a non-owning `CpuHeapAllocator* m_pHeapAllocator` (passed to the constructor) and a raw
+     `WindowImpl* m_pWindowImpl`.
+   - The constructor does `m_pWindowImpl = m_pHeapAllocator->New<WindowImpl>();`, and `Release()` does
+     `m_pHeapAllocator->Delete(m_pWindowImpl);`.
+   - Public methods forward to the impl. If the impl is `nullptr`, they log and return `false` / `nullptr`.
+2. **Impl** (`WindowImpl`, in `platform/<tag>/<tag><Module>Impl.h/.cpp`):
+   - **Same class name on every platform.** Only the file and folder carry the tag.
+   - Same method names and signatures as the abstraction.
+   - The whole `.cpp` body sits inside the platform guard
+     (`#if defined(OS_WINDOWS) && defined(HW_X64)` ... `#endif	// OS_WINDOWS && HW_X64`).
+   - Framework code and framework-typed members go inside `#if defined(FW_SDL3)`. Platform-common
+     members go outside.
+3. **Selection happens in `<module>Includes.h`**, which includes the impl header before the abstraction:
    ```cpp
-   // windowIncludes.h
-   #pragma once
-
-   #include "../platformConfig/platformConfigIncludes.h"
-   #include "windowDefines.h"
-   #include "windowTypes.h"
-
    #if defined(OS_WINDOWS) && defined(HW_X64)
    	#include "platform/win64/win64WindowImpl.h"
    #endif
 
    #include "window.h"
    ```
-   The impl header is included **before** the abstraction header, so the abstraction sees
-   the complete `WindowImpl` type.
 
-Why: adding a platform means adding a new `platform/<tag>/` folder plus one `#elif` line per
-module. The abstraction class and every caller stay untouched. That is how the engine stays
-highly reusable.
+A new platform means a new `platform/<tag>/` folder plus one `#elif` per module. Callers don't change.
 
-### 2.3 Where framework (`FW_`) code may appear
-
-| Location | Allowed? |
+### 2.3 Where framework (`FW_`) code may go
+| Location | Allowed |
 |---|---|
-| `platform/<tag>/` implementation files | ✅ Primary home for framework code |
-| `platformConfig/platform/<tag>/` | ✅ Framework defines and framework headers |
-| `<module>Types.h` / `<module>Defines.h` | ✅ Only for framework-typed fields/constants in descs, guarded (`SDL_WindowFlags m_flags;`) |
-| `app/` entry point, `AppState` | ✅ Currently (SDL main callbacks, temporary `SDL_Renderer`) |
-| Tests | ✅ Only to fill framework fields in descs |
-| Abstraction class `.h/.cpp` | ❌ Keep framework-free |
-| `logging/`, `memory/` | ❌ They are included *before* platform/framework headers (see §3.3) |
+| `platform/<tag>/` impls, `platformConfig/platform/<tag>/` | ✅ |
+| `<module>Types.h` / `<module>Defines.h` | ✅ only guarded framework-typed desc fields / constants |
+| `app/` entry point, `AppState` | ✅ (SDL callbacks, temporary `SDL_Renderer`) |
+| Tests | ✅ only to fill framework desc fields |
+| Abstraction `.h/.cpp` | ❌ |
+| `logging/`, `memory/` | ❌ (included before OS/framework headers, §3.3). Exception: OS calls (not OS types in headers) in `memory/**/platform/<tag>/*.cpp`, e.g. `VirtualAlloc` |
 
-Do not reach through the abstraction into the impl from outside the module
-(e.g. `m_pWindow->m_pWindowImpl->m_pWindow`). Expose what's needed on the abstraction instead.
-
-When framework code outside the module needs the underlying framework object (e.g. SDL needs
-the `SDL_Window*` to create a renderer), the abstraction exposes it **type-erased** as `void*`,
-so the abstraction stays framework-free. Only the caller, which is already inside a
-`#if defined(FW_...)` block, casts it back:
-```cpp
-// window.h / win64WindowImpl.h
-void* GetNativeWindowHandle() const;
-
-// win64WindowImpl.cpp
-void* WindowImpl::GetNativeWindowHandle() const
-{
-#if defined(FW_SDL3)
-	return m_pWindow.get();
-#else
-	return nullptr;
-#endif	// FW_SDL3
-}
-
-// win64App.cpp (inside #if defined(FW_SDL3))
-SDL_Window* pWindow = static_cast<SDL_Window*>(pState->m_pWindow->GetNativeWindowHandle());
-```
-Name these getters `GetNative<Thing>Handle()`.
+- Never reach through an abstraction into its impl (`m_pWindow->m_pWindowImpl->...`). Add a method instead.
+- Expose framework objects type-erased as `void* GetNative<Thing>Handle() const`, which returns
+  `nullptr` without the framework. Callers cast it back inside their own `FW_` block:
+  `static_cast<SDL_Window*>(pWindow->GetNativeWindowHandle())`.
 
 ---
 
-## 3. File and header organisation
+## 3. Files and includes
 
-### 3.1 Per-module file set
-
-Every module (`src/<module>/`) and sub-module (`src/<module>/<sub>/`) uses this set:
+### 3.1 Module file set
+Each module (`src/<module>/`) and sub-module (`src/<module>/<sub>/`) creates only the files it needs:
 
 | File | Contents |
 |---|---|
-| `<module>Includes.h` | **The only header anyone includes for this module.** Pulls in dependencies in the correct order. |
-| `<module>Defines.h` | Macros and `constexpr` constants only: values that act like definitions or guards (e.g. `defaultWindowWidth`, `defaultWindowFlags`, `HW_`/`OS_` macros). **No functions.** |
-| `<module>Types.h` | `enum class`es, plain `struct`s / creation descs (e.g. `WindowCreationDesc`, `AllocatorType`) |
-| `<module>Utils.h` | Free utility/helper functions for the module (e.g. `KB()/MB()/GB()` in `memoryUtils.h`). Defined in the header, so each must be a template, `constexpr` or `inline`. |
-| `<module>.h` / `<module>.cpp` | The abstraction class |
-| `platform/<tag>/<tag><Module>Impl.h/.cpp` | Platform implementation class |
+| `<module>Includes.h` | **The only header anyone includes for the module.** Sets the include order |
+| `<module>Defines.h` | Macros and `constexpr` constants only. **No functions** |
+| `<module>Types.h` | `enum class`es, plain structs, creation descs |
+| `<module>Utils.h` | Free helpers defined in the header (`template` / `constexpr` / `inline`), e.g. `KB()` |
+| `<module>.h/.cpp` | Abstraction class |
+| `platform/<tag>/<tag><Module>Impl.h/.cpp` | Platform impl |
 
-Files are created only when needed. For example, `logging/` has no Defines/Types/Utils,
-`memory/` has Types and Utils but no Defines, and `heap/` only has `heap.h/.cpp` + `heapIncludes.h`.
-
-Rule of thumb: if it's called like a function (`GB(1.0)`), it goes in Utils. If it's a name for
-a value or a compile-time switch (`defaultWindowWidth`, `OS_WINDOWS`), it goes in Defines.
+If it's called like a function, it goes in Utils. If it names a value or a switch, it goes in Defines.
 
 ### 3.2 Include rules
+- Every header starts with `#pragma once`.
+- **Leaf headers** (`<module>.h`, Defines, Types, Utils, impl headers) have **no `#include`s**.
+- **Every `.cpp` includes exactly one header: its module's `Includes.h`**, by relative path
+  (`#include "../../windowIncludes.h"` from `platform/win64/`). The only exception is `SDL_main.h` (§3.3).
+- Engine includes use relative paths in quotes. External headers use `<...>`.
+- `<module>Includes.h` order:
+  1. `../platformConfig/platformConfigIncludes.h`, or the parent's Includes for a sub-module
+  2. Other modules' Includes it depends on
+  3. Module-specific framework headers (inside `FW_` guards)
+  4. Defines → Types → Utils
+  5. Platform impl headers (inside platform guards, indented `#include`)
+  6. `<module>.h`
+  7. Sub-module Includes (`memoryIncludes.h` → `cpuHeap/cpuHeapIncludes.h`, `allocator/allocatorIncludes.h`)
 
-- Every header starts with `#pragma once` (no include guards).
-- **Leaf headers** (`<module>.h`, `<module>Types.h`, `<module>Defines.h`, `<module>Utils.h`, impl headers) contain
-  **no `#include`s**. They rely on the module's `Includes.h` having included everything first.
-  Don't add includes to them.
-- **Every `.cpp` includes exactly one header: its own module's `Includes.h`**, by relative path:
-  - `window.cpp` → `#include "windowIncludes.h"`
-  - `platform/win64/win64WindowImpl.cpp` → `#include "../../windowIncludes.h"`
-  - `heap/heap.cpp` → `#include "heapIncludes.h"`
-- All engine includes use **relative paths in quotes**. External headers use angle brackets
-  (`<SDL3/SDL.h>`, `<memory>`).
-- `<module>Includes.h` order is always:
-  1. `../platformConfig/platformConfigIncludes.h` (or the parent module's Includes for a
-     sub-module, e.g. `heapIncludes.h` → `../memoryIncludes.h`)
-  2. Other engine modules' `Includes.h` this module depends on
-  3. Framework headers if this module specifically needs them (inside `#if defined(FW_...)`)
-  4. `<module>Defines.h`, then `<module>Types.h`, then `<module>Utils.h` (Utils may use the
-     module's constants and types)
-  5. Platform impl header(s) inside platform guards
-  6. `<module>.h` (abstraction) last
-  7. Sub-module `Includes.h` files (e.g. `memoryIncludes.h` includes `heap/heapIncludes.h`)
-- Platform guards inside Includes headers use an indented include:
+### 3.3 Global include hub: `platformConfigIncludes.h`
+Includes, in order:
+1. `platformConfigDefines.h`
+2. `platformConfigTypes.h`
+3. Engine-wide std headers. Add new ones here, and don't rely on them arriving transitively.
+4. `logging/loggingIncludes.h`, `memory/memoryIncludes.h`
+5. `platform/<tag>/<tag>PlatformIncludes.h`: PlatformDefines → `<Windows.h>` → `<SDL3/SDL.h>` → PlatformTypes
+
+- Logging and memory come **before** OS/framework headers, so their headers can't use OS/framework types.
+- Circular includes are expected and resolved by `#pragma once`. Keep this order.
+- Depending on which Includes header a `.cpp` starts from, headers can be read in a different order.
+  Forward-declare types where needed (see `memoryTypes.h`).
+- OS/framework headers come in **only** through `platformConfig/platform/<tag>/`. **One exception:**
+  `SDL_main.h` defines `main`, so only the platform entry `.cpp` includes it, inside its platform +
+  framework guard, never from an Includes header. Every `App.cpp` may be compiled on any build, but
+  only the matching one gets `main`:
   ```cpp
+  #include "../../appIncludes.h"
+
   #if defined(OS_WINDOWS) && defined(HW_X64)
-  	#include "platform/win64/win64WindowImpl.h"
-  #endif
+  #if defined(FW_SDL3)
+
+  #include <SDL3/SDL_main.h>
   ```
-
-### 3.3 The global include hub: `platformConfigIncludes.h`
-
-Everything ultimately includes `platformConfigIncludes.h`, which sets up the world in this order:
-
-1. `platformConfigDefines.h`: all `HW_/OS_/FW_/GAPI_/BUILD_` macros
-2. `platformConfigTypes.h`: primitive typedefs
-3. Standard library headers used engine-wide (`<memory>`, `<print>`, `<format>`,
-   `<string_view>`, `<cstddef>`). Add new engine-wide std headers here.
-4. Core engine services: `logging/loggingIncludes.h`, `memory/memoryIncludes.h`
-5. The platform hub: `platform/<tag>/<tag>PlatformIncludes.h`, which in turn includes
-   `<tag>PlatformDefines.h` → OS headers (`<Windows.h>`) → framework headers (`<SDL3/SDL.h>`, ...)
-   → `<tag>PlatformTypes.h`
-
-Consequences:
-- Logging and memory are available everywhere, but **they are included before OS/framework
-  headers**, so they must not use OS/framework types.
-- Circular includes (e.g. `loggingIncludes.h` ↔ `platformConfigIncludes.h`) are expected and
-  resolved by `#pragma once`. Respect the ordering above when adding includes.
-- OS and framework headers are included **only** via `platformConfig/platform/<tag>/`, so
-  modules never include `<Windows.h>` or `<SDL3/...>` directly. The one exception is
-  `SDL_main.h` in `appIncludes.h`.
 
 ---
 
-## 4. Code formatting
+## 4. Formatting
 
-- **Indentation: tabs**, everywhere. Spaces are fine for alignment *after* code, such as in
-  column-aligned comment tables like `//  HW_X86      - 32-bit x86`.
-- **Line endings: LF**, enforced by `.gitattributes` (`* text=auto eol=lf`) so every OS and
-  IDE gets the same files no matter what `core.autocrlf` is set to. Only Windows-only formats
-  (`.bat`, `.cmd`, `.ps1`, `.sln`, `.vcxproj`) use CRLF.
-- **`.editorconfig`** sets indentation, line endings, UTF-8, the final newline and trailing
-  whitespace for every editor (Visual Studio, VS Code, CLion, Rider). Don't override it with
-  IDE-specific settings. JSON/YAML use 2-space indentation, and `vendor/` keeps its own style.
-- **Braces: Allman.** Opening brace on its own line for classes, structs, enums, functions,
-  `if`/`switch`/loops.
-  ```cpp
-  b8 Heap::Release()
-  {
-  	if (m_pHeapStart)
-  	{
-  		delete m_pHeapStart;
-  	}
-
-  	Clear();
-
-  	return true;
-  }
-  ```
-- Single-statement early returns may skip braces (`if (!x)\n    return false;`, as in
-  `win64App.cpp`). Engine classes generally brace them. Prefer braces inside class methods.
+- **Tabs** for indentation. Spaces only for alignment after code.
+- **LF** line endings (`.gitattributes`). CRLF only for `.bat`, `.cmd`, `.ps1`, `.sln`, `.vcxproj`.
+  `.editorconfig` sets indentation, UTF-8 without BOM, the final newline and trailing whitespace.
+  Don't override it. JSON/YAML use 2 spaces.
+- **Allman braces** for everything.
+- Single-statement early returns may skip braces (as in `win64App.cpp`). Prefer braces in class methods.
 - A blank line before `return` and between logical steps.
-- **Align `=` in consecutive member assignments** with tabs (see `Clear()` methods):
+- **Align `=` with tabs** in consecutive member assignments (`Clear()`):
   ```cpp
-  m_pHeapStart		= nullptr;
-  m_capacity			= 0;
-  m_isAllocated		= false;
+  m_pBase			= nullptr;
+  m_capacity		= 0;
+  m_isAllocated	= false;
   ```
-- `switch` `case` labels sit at the same indentation as `switch`.
-- **Multi-line call layout for logging.** Put each argument on its own line:
+- `case` labels at the same indentation as `switch`.
+- **Log calls:** one argument per line:
   ```cpp
   DebugLogError(
   	"{}: SDL_CreateWindow failed: {}",
@@ -292,7 +184,7 @@ Consequences:
   	SDL_GetError()
   );
   ```
-- **Aggregate init of descs:** braces on their own lines, related values grouped per line:
+- **Desc aggregate init:** braces on their own lines, related values grouped per line:
   ```cpp
   WindowCreationDesc windowDesc
   {
@@ -302,89 +194,63 @@ Consequences:
   };
   ```
 - **Preprocessor:**
-  - Directives inside `#if` blocks are indented with a tab (`#if defined(FW_SDL3)` /
-    `\t#include <SDL3/SDL.h>`). Inside class/function bodies, `#if`/`#endif` sit at column 0
-    or match the surrounding indentation.
-  - **Every `#endif` that closes a non-trivial block gets a comment naming its condition:**
-    `#endif	// FW_SDL3`, `#endif	// OS_WINDOWS && HW_X64`.
-  - Group related code with regions, closing with a matching comment:
-    ```cpp
-    #pragma region BYTE_COUNT_OPERATIONS
-    ...
-    #pragma endregion	// BYTE_COUNT_OPERATIONS
-    ```
-    Region names are `UPPER_SNAKE_CASE`.
-- **Comments:** `//` only. A short comment line above a logical step (`// Window creation`,
-  `// Renderer creation`). Enum values may have trailing comments (`CPU,		// in RAM`).
-  Templates/helpers get a one-line description plus `// Example use: ...`.
-- **TODOs:** `// TODO : <description>` (note the space before the colon). TODOs mark intended
-  future direction (e.g. "Use own heap allocation", "Make own Graphic System"). Don't delete
-  them unless you implement them.
+  - Indent directives inside `#if` blocks with a tab. In function bodies, `#if`/`#endif` sit at column 0.
+  - Every non-trivial `#endif` names its condition: `#endif	// FW_SDL3`, `#endif	// OS_WINDOWS && HW_X64`.
+  - Regions: `#pragma region UPPER_SNAKE_CASE` ... `#pragma endregion	// UPPER_SNAKE_CASE`.
+- **Comments:**
+  - `//` only. **Short, simple and clear:** one line, a few words (`// Window creation`, `// not owned`).
+  - Say *what*. Add *why* only when it isn't obvious, and keep it brief. No multi-line explanations.
+  - Helpers and templates get a one-line description plus `// Example use: ...`.
+  - **Never mention AGENTS.md, docs or section numbers in code.** Rules live here.
+- **TODOs:** `// TODO : <description>` (space before the colon). Keep them until implemented.
 
 ---
 
-## 5. Naming conventions
+## 5. Naming
 
-### 5.1 Primitive types: always use the engine typedefs
-
-Defined in `platformConfigTypes.h`. **Use these instead of the raw keywords:**
-
-| Typedef | Underlying | | Typedef | Underlying |
-|---|---|---|---|---|
-| `s8` | `signed char` | | `u8` | `unsigned char` |
-| `s16` | `short` | | `u16` | `unsigned short` |
-| `s32` | `int` | | `u32` | `unsigned int` |
-| `s64` | `long long` | | `u64` | `unsigned long long` |
-| `b8` | `bool` | | `f32` / `f64` | `float` / `double` |
-| `c8` | `char` | | | |
-
-- Signed integers use the **`s` prefix** (`s32`), **never `i`**.
-- `size_t`, `std::byte` and `const char*` are currently used as-is.
-- Exceptions: signatures dictated by external APIs keep their types (`int, char**` in
-  `SDL_AppInit`; SDL enum/handle types).
-- New platform-specific typedefs go in `platformConfig/platform/<tag>/<tag>PlatformTypes.h`.
+### 5.1 Primitive types
+Use the `platformConfigTypes.h` typedefs, not raw keywords:
+`s8 s16 s32 s64` (signed, **never `i`**), `u8 u16 u32 u64`, `b8` (bool), `f32 f64`, `c8` (char).
+- `size_t`, `std::byte`, `const char*` are used as-is.
+- External API signatures keep their types (`int, char**` in `SDL_AppInit`, the standard `std::pmr` overrides).
+- Platform typedefs go in `platformConfig/platform/<tag>/<tag>PlatformTypes.h`.
 
 ### 5.2 Identifiers
-
 | Kind | Style | Examples |
 |---|---|---|
-| Classes / structs | `PascalCase` | `Window`, `WindowImpl`, `Heap`, `AppState` |
-| Platform impl class | `<Name>Impl`, **no platform tag** | `WindowImpl` |
-| Creation / config structs | `<Thing>CreationDesc` (or `<Thing>Desc`) | `WindowCreationDesc` |
-| Functions & methods | `PascalCase`, verb-first | `CreateAppWindow`, `AllocateHeap`, `AllocateHeapOnCPU` |
-| Member variables | `m_` + `camelCase` | `m_width`, `m_capacity`, `m_memoryLocation` |
-| Pointer variables (members, locals, params, constants) | `p` prefix; `pp` for pointer-to-pointer. Smart pointers count. | `m_pWindow`, `m_pWindowImpl`, `pState`, `ppAppState`, `pDefaultWindowTitle` |
-| Booleans | `is` prefix | `m_isAllocated`, `isWindowCreated`, `isSuccess` |
-| Locals / params | `camelCase`, units in the name where relevant | `capacityInBytes`, `sizeInBytes`, `windowDesc` |
-| `constexpr` constants | `camelCase` (not ALL_CAPS); defaults use a `default` prefix | `defaultWindowWidth`, `defaultWindowFlags` |
-| `enum class` | type `PascalCase`, values `UPPER_SNAKE_CASE`, **`UNDEFINED` as the last value** | `MemoryPhysicalLocation::CPU`, `AllocatorType::BUMP_ALLOCATOR` |
-| Macros | `UPPER_SNAKE_CASE` with an axis prefix | `OS_WINDOWS`, `FW_SDL3`, `BUILD_DEBUG` |
-| Acronyms in names | keep upper case | `AllocateHeapOnCPU`, `AllocateHeapOnGPU` |
-| Files | `camelCase`; platform files prefixed by the tag | `windowIncludes.h`, `win64WindowImpl.cpp` |
-| Folders | `camelCase` module names; `platform/<tag>/` | `platformConfig/`, `memory/heap/`, `window/platform/win64/` |
+| Classes / structs | `PascalCase` | `Window`, `CpuHeap`, `AppState` |
+| Platform impl | `<Name>Impl`, no tag | `WindowImpl` |
+| Creation structs | `<Thing>CreationDesc` | `WindowCreationDesc` |
+| Functions / methods | `PascalCase`, verb first | `CreateAppWindow`, `GetBasePointer` |
+| Members | `m_` + `camelCase` | `m_width`, `m_freeBlocks` |
+| Pointers (any kind) | `p` prefix, `pp` for pointer-to-pointer | `m_pWindowImpl`, `pState`, `ppAppState` |
+| Booleans | `is` prefix | `m_isAllocated`, `isSuccess` |
+| `static` variables | **No `s_` / `g_` prefix.** Named like any other variable | `static AppState appState;` |
+| Locals / params | `camelCase`, units in names | `capacityInBytes`, `windowDesc` |
+| `constexpr` constants | `camelCase`, defaults prefixed `default` | `defaultWindowWidth` |
+| `enum class` | `PascalCase` type, `UPPER_SNAKE_CASE` values, **`UNDEFINED` last** | `AllocatorType::BUMP_ALLOCATOR` |
+| Macros | `UPPER_SNAKE_CASE` with axis prefix | `OS_WINDOWS`, `FW_SDL3` |
+| Acronyms | Upper case in functions; `Cpu`/`Gpu` in type and file names | `GetNativeWindowHandle`, `CpuHeap`, `cpuHeap.h` |
+| Files / folders | `camelCase`; platform files prefixed by tag | `windowIncludes.h`, `win64WindowImpl.cpp`, `memory/cpuHeap/` |
 
-Always use `enum class`, never plain `enum`.
+- Always use `enum class`.
+- Avoid names that clash with OS macros: `CreateAppWindow`, not `CreateWindow`. Also avoid `<Windows.h>`'s
+  lowercase macros `small`, `near`, `far`, `min`, `max` as variable names.
 
 ---
 
-## 6. Class layout and function signatures
+## 6. Classes and functions
 
 ### 6.1 Class shape
-
-Reference: `WindowImpl` in `src/window/platform/win64/win64WindowImpl.h`, shown here with
-section comments added:
-
 ```cpp
-#pragma once
-
 class WindowImpl
 {
 public:
-	// 1. Data members first (public): platform-common, then framework-specific
+	// 1. Public data members: platform-common, then framework (guarded)
 	u32 m_width;
 	u32 m_height;
 #if defined(FW_SDL3)
-	std::shared_ptr<SDL_Window> m_pWindow;
+	SDL_Window* m_pWindow;		// owned by SDL
 	SDL_WindowFlags m_flags;
 #endif	// FW_SDL3
 
@@ -399,76 +265,40 @@ public:
 	void* GetNativeWindowHandle() const;
 };
 ```
+- No in-class initialisers: `Clear()` sets members. Plain data structs (`AppState`) may use `= nullptr`.
+- Private helpers go last under `private:`.
+- **No virtuals or inheritance for platforms.** The exception is runtime strategy hierarchies
+  (`Allocator` → `BumpAllocator` / `FreeListAllocator`):
+  - Overrides use `override`.
+  - Constructors, destructors and `Release()` call their own class's `Clear()` explicitly
+    (`BumpAllocator::Clear()`), since virtual dispatch doesn't reach the child there.
+- Classes owning a raw pointer (`Window`, `CpuHeap`) `= delete` their copy constructor and copy assignment.
+- Headers declare only. The exceptions are templates (`logging.h`, `CpuHeapAllocator::New` / `Delete`)
+  and Utils helpers.
+- Define methods in the `.cpp` in header order.
 
-- Data members are **public** and declared first, without in-class initialisers.
-  `Clear()` sets their values. (Plain data structs such as `AppState` may use in-class
-  initialisers like `= nullptr`.)
-- Framework-specific members are wrapped in `#if defined(FW_...)` ... `#endif	// FW_...`,
-  after the platform-common members.
-- Private helpers, if any, go last under `private:` (see `Heap` in `src/memory/heap/heap.h`).
-- No virtual functions or inheritance for platform abstraction (see §2.2).
-- Declare only, never define, in the header. The exceptions are templates (`logging.h`) and the
-  `constexpr`/`inline` helpers in `<module>Utils.h`.
-- Write method definitions in the `.cpp` in the same order as the header.
-
-### 6.2 Lifecycle idiom: Clear / Release
-
-Every engine class follows this pattern:
-
-| Method | Responsibility |
+### 6.2 Lifecycle: Clear / Release
+| Method | Does |
 |---|---|
-| Constructor | Calls `Clear()`, then creates owned sub-objects (e.g. `m_pWindowImpl = std::make_shared<WindowImpl>();`) |
-| Destructor | Calls `Release()` |
-| `Clear()` | Resets **every** member to its default/empty value (`nullptr`, `0`, `false`, `::UNDEFINED`). Frees nothing. |
-| `Release()` | Frees owned resources (`delete`, `.reset()`), **then calls `Clear()`** |
+| Constructor | `Clear()`, then creates owned objects (`m_pHeapAllocator->New<...>()`) |
+| Destructor | `Release()` |
+| `Clear()` | Resets **every** member (`nullptr`, `0`, `false`, `::UNDEFINED`). Frees nothing |
+| `Release()` | Frees owned resources (`Delete(...)`, `SDL_DestroyWindow`, ...), **then** `Clear()` |
 
-`Clear()` and `Release()` return `b8` (`true` on success), in both abstraction and impl classes.
+Both return `b8` (`true` on success).
 
-### 6.3 Function signatures
-
-- **Return `b8` for operations that can fail** (`true` = success). Callers check and propagate:
-  ```cpp
-  if (!AllocateHeapCapacity())
-  {
-  	return false;
-  }
-  ```
-- Pass structs and descs **by `const&`**: `b8 CreateAppWindow(const WindowCreationDesc& desc);`.
-- Group creation parameters into a `<Thing>CreationDesc` struct in `<module>Types.h` instead of
-  writing long parameter lists.
-- **Always create desc structs with curly-brace initialization** so every member is
-  zeroed. Any member without an explicit value is value-initialized (`0`, `nullptr`, `false`,
-  or the first enum value), while a plain `WindowCreationDesc windowDesc;` leaves members as
-  indeterminate garbage that the impl would then read.
-  ```cpp
-  // Good: listed values, every remaining member zeroed
-  WindowCreationDesc windowDesc
-  {
-  	defaultWindowWidth, defaultWindowHeight,
-  	pDefaultWindowTitle,
-  	defaultWindowFlags
-  };
-
-  // Good: everything zeroed, then fill in fields
-  WindowCreationDesc windowDesc{};
-  windowDesc.m_width		= defaultWindowWidth;
-  windowDesc.m_height		= defaultWindowHeight;
-
-  // Bad: members are uninitialized
-  WindowCreationDesc windowDesc;
-  ```
-  To keep this working, desc structs stay plain aggregates: public members only, no
-  constructors, no virtuals. Never zero them with `memset`.
-- Include units in parameter names (`capacityInBytes`, `sizeInBytes`).
-- Leave unused parameters **unnamed** (`SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)`).
+### 6.3 Functions
+- Fallible functions **return `b8`** (`true` = success). Callers check and propagate.
 - Use guard clauses: validate, log, `return false`. Then do the work, then `return true`.
-- No exceptions. Failures are reported with a `b8` return and a log line.
-- The abstraction and impl expose identical method names (`CreateAppWindow` on both).
-- **Generic helpers use C++20 concepts and `if constexpr`, not overload sets or SFINAE.**
-  Don't write separate overloads for different numeric types (e.g. `f64` and `u64`
-  versions of one function): an `int` argument converts equally well to both, so the call is
-  ambiguous. Write one template and constrain it with a `requires` clause on its own
-  tab-indented line. Branch on the type inside the body (see `memoryUtils.h`):
+- **No exceptions.** Report failures with a `b8` return and a log line.
+- Pass structs **by `const&`**. Group creation parameters into a `<Thing>CreationDesc` in `<module>Types.h`.
+- **Always brace-initialise descs** (`Desc desc{ ... }` or `Desc desc{}`), so unlisted members are zeroed.
+  Never leave them uninitialised (`Desc desc;`), and never `memset` them. Descs stay plain
+  aggregates: public members, no constructors, no virtuals.
+- Put units in parameter names (`sizeInBytes`). Leave unused parameters unnamed.
+- Abstraction and impl use identical method names.
+- **Generic helpers use one constrained template, not overloads or SFINAE.** Put the `requires`
+  clause on its own tab-indented line and branch with `if constexpr` (see `memoryUtils.h`):
   ```cpp
   template<typename T>
   	requires std::integral<T> || std::floating_point<T>
@@ -484,120 +314,100 @@ Every engine class follows this pattern:
   	}
   }
   ```
-  Standard concepts come from `<concepts>`. Make sure it's included through the std-header
-  block of `platformConfigIncludes.h`; don't rely on it arriving through another header.
-- Avoid names that clash with OS/framework macros or functions. For example, use
-  `CreateAppWindow`, **not** `CreateWindow`, which is a Win32 macro.
 
 ### 6.4 Memory and ownership
-
-- Current state: `std::shared_ptr` / `std::make_shared` for owned objects. Framework handles are
-  wrapped in `shared_ptr` with a custom deleter:
+- **Engine objects live on the engine CPU heap.** Never use `new`, `delete`, `make_shared`, `shared_ptr`
+  or `unique_ptr` for them. Use raw pointers, and the owner frees in `Release()`:
   ```cpp
-  m_pWindow = std::shared_ptr<SDL_Window>(pWindowRawPtr, [](SDL_Window* ptr) { SDL_DestroyWindow(ptr); });
+  m_pWindowImpl = m_pHeapAllocator->New<WindowImpl>();	// constructor
+  m_pHeapAllocator->Delete(m_pWindowImpl);				// Release(), nulls the pointer
   ```
-- **Intended direction:** allocations will move to the engine's own heap/allocator system
-  (`memory/heap`, `AllocatorType`, `MemoryPhysicalLocation`). Existing `// TODO : Use own heap
-  allocation` markers show where. Keep allocation sites easy to find, and don't spread new
-  allocation strategies around.
-- Use `KB()/MB()/GB()` from `memoryUtils.h` for byte sizes. Never write `1024 * 1024` by hand.
-  They are constrained templates, so any integer or floating-point argument works
-  (`KB(4)`, `MB(someU32)`, `GB(1.5)`). Integer arguments use a bit shift
-  (`<< 10 / 20 / 30`), and floating-point arguments multiply and then truncate to `u64`.
-  Don't pass negative values: converting a negative float to `u64` is undefined behaviour,
-  and a negative integer wraps around.
+- **Pass the heap allocator in.** There's no global memory system. A class that allocates takes a
+  `CpuHeapAllocator*` (constructor or desc) and keeps it as a non-owning `m_pHeapAllocator`, which
+  must outlive its allocations.
+- `CpuHeapAllocator` pairs a `CpuHeap` (memory) with an `Allocator` strategy (`BumpAllocator`,
+  `FreeListAllocator`) and owns neither. For STL containers, use `std::pmr` containers with a `CpuMemoryResource`.
+- **Exceptions:**
+  - `CpuHeap` allocates its `CpuHeapImpl` with `new` / `delete`, because the heap can't allocate itself.
+  - The root `AppState` is static (`GetAppState()` in `app/app.cpp`, platform agnostic). It owns the
+    root `CpuHeap`, `FreeListAllocator` and `CpuHeapAllocator` by value. Entry points get it from
+    `GetAppState()` and never declare their own.
+  - Allocator bookkeeping (the free-list table) may use the CRT heap, but its size is fixed at `Initialise`.
+- **Framework memory belongs to the framework.** Create and destroy framework objects through their
+  API (`SDL_CreateWindow` / `SDL_DestroyWindow`), store raw pointers, and destroy them in `Release()`.
+  Never route framework allocations through the engine heap.
+- **Sizes:** use `KB()/MB()/GB()`, never `1024 * 1024`. Integers are bit-shifted, and floats are
+  multiplied then truncated to `u64`. Never pass negative values (UB for floats, wraps for integers).
 
 ---
 
 ## 7. Logging
+`src/logging/logging.h`, available everywhere. Compile-time checked `std::format_string` → `std::println`.
 
-Defined in `src/logging/logging.h`, available everywhere through `platformConfigIncludes.h`.
-These are compile-time checked `std::format_string` templates printing via `std::println`:
-
-| Always | Debug builds only (`BUILD_DEBUG`) |
+| Always | Debug only (`BUILD_DEBUG`) |
 |---|---|
-| `Log(...)` → `[LOG]` | `DebugLog(...)` → `[DEBUG][LOG]` |
-| `LogWarning(...)` → `[WARNING]` | `DebugLogWarning(...)` → `[DEBUG][WARNING]` |
-| `LogError(...)` → `[ERROR]` | `DebugLogError(...)` → `[DEBUG][ERROR]` |
+| `Log` → `[LOG]` | `DebugLog` → `[DEBUG][LOG]` |
+| `LogWarning` → `[WARNING]` | `DebugLogWarning` → `[DEBUG][WARNING]` |
+| `LogError` → `[ERROR]` | `DebugLogError` → `[DEBUG][ERROR]` |
 
-Convention: **the first placeholder is always the calling function**, and the multi-line layout
-from §4 applies:
-```cpp
-DebugLogWarning(
-	"{}: Heap is already allocated, skipping reallocation",
-	__FUNCTION__
-);
-```
-Log every failure path before returning `false`, along with significant lifecycle events (created,
-released). Never use `printf`/`std::cout` directly.
+- The first placeholder is always the caller: `"{}: ..."`, `__FUNCTION__`.
+- Log every failure path before returning `false`, and log lifecycle events (created, released).
+- Never use `printf` or `std::cout`.
 
 ---
 
 ## 8. Application entry point
-
-- `SDL_MAIN_USE_CALLBACKS` is defined in `win64PlatformDefines.h`, so the engine uses SDL3's
-  callback entry (`SDL_AppInit`, `SDL_AppEvent`, `SDL_AppIterate`, `SDL_AppQuit`) implemented in
-  `app/platform/<tag>/<tag>App.cpp`, guarded by platform **and** framework.
-- Global state lives in `AppState` (`app/appTypes.h`), passed through the `void*` app-state pointer
-  and recovered with `static_cast<AppState*>(pAppState)`.
-- `AppState::m_pRenderer` (raw `SDL_Renderer*`) is temporary until the engine's own graphics
-  system exists (`// TODO : Make own Graphic System`). New rendering work should aim for an
-  abstraction + `platform/<tag>` impl following §2.2, using the `GAPI_` macros.
+- SDL3 callback entry (`SDL_MAIN_USE_CALLBACKS` in `win64PlatformDefines.h`). `SDL_AppInit`,
+  `SDL_AppEvent`, `SDL_AppIterate` and `SDL_AppQuit` live in `app/platform/<tag>/<tag>App.cpp`, inside
+  platform + framework guards, with `SDL_main.h` included there (§3.3). `win64App.h` declares them
+  `extern "C"` with `SDLCALL` to match SDL.
+- `SDL_AppInit` takes `GetAppState()`, builds the root heap → allocator → `CpuHeapAllocator` → engine
+  objects, and hands the state over via `*ppAppState`. The other callbacks use `static_cast<AppState*>(pAppState)`.
+- `SDL_AppQuit` destroys in reverse: framework objects, then engine objects (`Delete`), then root memory.
+- `AppState::m_pRenderer` is temporary (`// TODO : Make own Graphic System`). New rendering work should
+  follow §2.2 and use the `GAPI_` macros.
 
 ---
 
-## 9. Build system (CMake)
-
-- **Sources are listed explicitly, not globbed.** When you add files:
+## 9. Build (CMake)
+- **List sources explicitly** (no globbing):
   - `.cpp` → `add_executable(${PROJECT_NAME} ...)` in `src/CMakeLists.txt`
-  - `.h` → `target_sources(${PROJECT_NAME} PRIVATE ...)` in the same file, grouped with their
-    module (this keeps them visible in the VS Solution Explorer via `source_group(TREE ...)`)
-  - If tests need the code, add the `.cpp` to `add_executable(HairlossTest ...)` in
-    `tests/CMakeLists.txt` too (tests compile engine sources directly rather than linking a lib)
-- Third-party libraries are added in `vendor/CMakeLists.txt` as submodules and exposed through
-  the `vendor` INTERFACE target (`tests` INTERFACE target for test-only deps).
-- Platform `.cpp` files are currently listed unconditionally. They compile to nothing on other
-  platforms because their bodies are platform-guarded. When a second platform lands, gate
-  platform source lists in CMake as well (e.g. `if(WIN32)`).
-- **Source encoding is UTF-8.** The root `CMakeLists.txt` adds `/utf-8` for MSVC so non-ASCII
-  text (e.g. Japanese string literals) compiles the same on every machine, whatever its system
-  code page. GCC/Clang already default to UTF-8. Save files as UTF-8 without a BOM (see
-  `.editorconfig`). Engine-wide compile flags go in the root `CMakeLists.txt` *after*
-  `add_subdirectory(vendor)`, so vendored code keeps its own flags.
-- Configure/build via presets (`cmake --preset vs2026-x64`, `cmake --build --preset vs2026-x64-debug`).
-  Build output goes to `project/<preset>/`. Don't commit it.
+  - `.h` → `target_sources(...)` there, grouped by module
+  - Also add the `.cpp` to `tests/CMakeLists.txt` if tests use it, since tests compile engine sources directly
+- Vendored libs go in `vendor/CMakeLists.txt`, exposed via the `vendor` INTERFACE target (`tests` for test-only).
+- Platform `.cpp` files are listed unconditionally, and their bodies compile to nothing on other
+  platforms. Gate them per platform (`if(WIN32)`) once a second platform lands.
+- MSVC gets `/utf-8` (root `CMakeLists.txt`). Engine-wide flags go after `add_subdirectory(vendor)`.
+- Configure and build: `cmake --preset vs2026-x64`, `cmake --build --preset vs2026-x64-debug`.
+  Never commit `project/`.
 
 ---
 
 ## 10. Tests
-
-- Catch2 v3 in `tests/`. Shared includes are in `tests/testIncludes.h`, which includes Catch2 headers
-  and the relevant engine `<module>Includes.h`.
-- One file per module: `<module>Test.cpp`. Each starts with `#include "testIncludes.h"`.
-- `TEST_CASE("Human Readable Name", "[module]")` with Allman braces. Use `REQUIRE` on `b8`
-  results. Tests use the **abstraction class**, never the impl directly.
-- Framework-specific desc fields are filled inside `#if defined(FW_...)` blocks.
+- One `<module>Test.cpp` per module, each starting with `#include "testIncludes.h"`.
+- `testIncludes.h` includes Catch2 and the engine Includes, and provides
+  `TestCpuHeap<TAllocator>` (a test-owned heap, strategy and `CpuHeapAllocator`).
+- `TEST_CASE("Readable Name", "[module]")`, Allman braces, `REQUIRE` on `b8` results.
+- Use abstraction classes, never impls. Fill framework desc fields inside `FW_` guards.
 
 ---
 
-## 11. Agent checklist (before you finish an edit)
-
-- [ ] Used `s8..s64 / u8..u64 / b8 / f32 / f64 / c8`, not raw primitives
-- [ ] Tabs, LF line endings, Allman braces, aligned `Clear()` assignments, multi-line log calls
-- [ ] `m_` members, `p`/`pp` pointers, `is` booleans, PascalCase methods, `UNDEFINED` last in enums
-- [ ] `.cpp` includes only its module's `Includes.h`. Leaf headers have no includes
-- [ ] No raw compiler/OS macros outside `platformConfigDefines.h`; `#if defined(...)` everywhere
-- [ ] No `OS_`/`HW_` checks in abstraction classes. Framework code only in impls/platformConfig
-- [ ] Every `#endif` commented with its condition. Regions closed with a matching comment
-- [ ] Constructor→`Clear()`, destructor→`Release()`, `Release()`→`Clear()`
-- [ ] Desc structs created with `{ ... }` / `{}` initialization, never left uninitialized
-- [ ] Fallible functions return `b8`, log failures with `"{}: ..."` + `__FUNCTION__`
-- [ ] New files registered in `src/CMakeLists.txt` (and `tests/CMakeLists.txt` if relevant)
-- [ ] No edits under `vendor/` or `project/`. Existing `// TODO :` markers preserved
+## 11. Checklist
+- [ ] Engine typedefs (`s32`, `u64`, `b8`, ...), not raw primitives
+- [ ] Tabs, LF, Allman, aligned `Clear()`, multi-line logs, named `#endif`s, closed regions
+- [ ] `m_` / `p` / `is` prefixes, no `s_` / `g_`, PascalCase methods, `UNDEFINED` last
+- [ ] `.cpp` includes only its Includes header, and leaf headers include nothing
+- [ ] Raw compiler macros only in `platformConfigDefines.h`, `#if defined(...)` everywhere
+- [ ] No `OS_`/`HW_`/`FW_` in abstractions
+- [ ] Constructor → `Clear()`, destructor → `Release()`, `Release()` → `Clear()`
+- [ ] Descs brace-initialised
+- [ ] Engine objects via `CpuHeapAllocator::New` / `Delete` with raw pointers (only the §6.4 exceptions)
+- [ ] Fallible functions return `b8` and log failures with `"{}: ..."` + `__FUNCTION__`
+- [ ] Short comments, no AGENTS.md references in code
+- [ ] New files registered in CMake (and tests if relevant)
+- [ ] No edits to `vendor/` or `project/`, existing `// TODO :` markers kept
 
 ---
 
-## 12. Known issues in the current code (don't copy these patterns)
-
-None open right now. When you spot a bug or a deviation from this guide that you aren't fixing
-in your current change, list it here so the next agent doesn't copy it.
+## 12. Known issues
+None open. List any bug or guide deviation you notice but don't fix here, so others don't copy it.
