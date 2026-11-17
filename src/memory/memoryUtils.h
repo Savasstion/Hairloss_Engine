@@ -43,3 +43,22 @@ constexpr u64 GB(T gb)
 	}
 }
 #pragma endregion	// BYTE_COUNT_OPERATIONS
+
+#pragma region ALIGNMENT_OPERATIONS
+// Rounds up to a power-of-two alignment
+// Example use: AlignUp(13ull, 8ull) == 16
+template<typename T>
+	requires std::unsigned_integral<T>
+constexpr T AlignUp(T value, T alignment)
+{
+	return (value + (alignment - 1)) & ~(alignment - 1);
+}
+
+// Example use: IsPowerOfTwo(256ull) == true
+template<typename T>
+	requires std::unsigned_integral<T>
+constexpr b8 IsPowerOfTwo(T value)
+{
+	return value != 0 && (value & (value - 1)) == 0;
+}
+#pragma endregion	// ALIGNMENT_OPERATIONS

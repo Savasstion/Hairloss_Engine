@@ -4,11 +4,16 @@
 #include "platformConfigTypes.h"
 
 #include <memory>
+#include <new>
 #include <print>
 #include <format>
 #include <string_view>
 #include <cstddef>
+#include <cstdlib>
 #include <concepts>
+#include <vector>
+#include <algorithm>
+#include <memory_resource>
 
 #include "../logging/loggingIncludes.h"
 #include "../memory/memoryIncludes.h"

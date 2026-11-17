@@ -2,16 +2,39 @@
 
 #if defined(OS_WINDOWS) && defined(HW_X64)
 #if defined(FW_SDL3)
+
+#include <SDL3/SDL_main.h>
+
 SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
 {
+	AppState* pState = GetAppState();
+	*ppAppState = pState;
+
 	if (!SDL_Init(SDL_INIT_VIDEO))
 		return SDL_APP_FAILURE;
 
-	// TODO : Use own heap allocation
-	AppState* pState = new AppState();
-	*ppAppState = pState;
+	// App heap creation
+	CpuHeap& appHeap					= pState->m_appHeap;
+	FreeListAllocator& appAllocator		= pState->m_appAllocator;
+	CpuHeapAllocator& appHeapAllocator	= pState->m_appHeapAllocator;
 
-	// Window creation
+	CpuHeapCreationDesc cpuHeapDesc
+	{
+		defaultAppHeapCapacityInBytes,
+		0
+	};
+
+	if (!appHeap.AllocateHeap(cpuHeapDesc))
+		return SDL_APP_FAILURE;
+
+	if (!appAllocator.Initialise(pState->m_appHeap.GetCapacity()))
+		return SDL_APP_FAILURE;
+
+	if (!appHeapAllocator.Initialise(&pState->m_appHeap, &pState->m_appAllocator))
+		return SDL_APP_FAILURE;
+
+	// App Window creation
+	Window*& pAppWindow = pState->m_pWindow;
 	WindowCreationDesc windowDesc
 	{
 		defaultWindowWidth, defaultWindowHeight,
@@ -19,20 +42,22 @@ SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
 		defaultWindowFlags
 	};
 
-	// TODO : Use own heap allocation
-	pState->m_pWindow = std::make_shared<Window>();
-	b8 isWindowCreated = pState->m_pWindow->CreateAppWindow(windowDesc);
+	pAppWindow = appHeapAllocator.New<Window>(&appHeapAllocator);
+	if (!pAppWindow)
+		return SDL_APP_FAILURE;
+
+	b8 isWindowCreated = pAppWindow->CreateAppWindow(windowDesc);
 	if (!isWindowCreated)
 		return SDL_APP_FAILURE;
 
 	// Renderer creation
-	SDL_Window* pWindow = static_cast<SDL_Window*>(pState->m_pWindow->GetNativeWindowHandle());
-	pState->m_pRenderer = SDL_CreateRenderer(pWindow, nullptr);
+	SDL_Window* pSdlWindow = static_cast<SDL_Window*>(pAppWindow->GetNativeWindowHandle());
+	pState->m_pRenderer = SDL_CreateRenderer(pSdlWindow, nullptr);
 	if (!pState->m_pRenderer)
 		return SDL_APP_FAILURE;
 
 	DebugLog(
-		"{}: App initialization is successful", 
+		"{}: App initialization is successful",
 		__FUNCTION__
 	);
 
@@ -50,10 +75,12 @@ SDL_AppResult SDL_AppEvent(void* pAppState, SDL_Event* pEvent)
 SDL_AppResult SDL_AppIterate(void* pAppState)
 {
 	AppState* pState = static_cast<AppState*>(pAppState);
-	
-	SDL_SetRenderDrawColor(pState->m_pRenderer, 30, 30, 30, 255);
-	SDL_RenderClear(pState->m_pRenderer);
-	SDL_RenderPresent(pState->m_pRenderer);
+
+	auto* pRenderer = pState->m_pRenderer;
+
+	SDL_SetRenderDrawColor(pRenderer, 30, 30, 30, 255);
+	SDL_RenderClear(pRenderer);
+	SDL_RenderPresent(pRenderer);
 
 	return SDL_APP_CONTINUE;
 }
@@ -68,9 +95,19 @@ void SDL_AppQuit(void* pAppState, SDL_AppResult)
 	AppState* pState = static_cast<AppState*>(pAppState);
 	if (pState)
 	{
-		SDL_DestroyRenderer(pState->m_pRenderer);
-		pState->m_pWindow.reset();
-		delete pState;
+		// Renderer before window
+		if (pState->m_pRenderer)
+		{
+			SDL_DestroyRenderer(pState->m_pRenderer);
+			pState->m_pRenderer = nullptr;
+		}
+
+		pState->m_appHeapAllocator.Delete(pState->m_pWindow);
+
+		// Root memory last
+		pState->m_appHeapAllocator.Release();
+		pState->m_appAllocator.Release();
+		pState->m_appHeap.Release();
 	}
 
 	SDL_Quit();

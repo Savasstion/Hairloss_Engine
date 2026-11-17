@@ -27,6 +27,7 @@ b8 WindowImpl::Clear()
 	m_width		= 0;
 	m_height	= 0;
 #if defined(FW_SDL3)
+	m_pWindow	= nullptr;
 	m_flags		= 0;
 #endif	// FW_SDL3
 
@@ -41,7 +42,10 @@ b8 WindowImpl::Clear()
 b8 WindowImpl::Release()
 {
 #if defined(FW_SDL3)
-	m_pWindow.reset();
+	if (m_pWindow)
+	{
+		SDL_DestroyWindow(m_pWindow);
+	}
 #endif	// FW_SDL3
 
 	DebugLog(
@@ -57,9 +61,19 @@ b8 WindowImpl::Release()
 b8 WindowImpl::CreateAppWindow(const WindowCreationDesc& desc)
 {
 #if defined(FW_SDL3)
-	// TODO : Check how does this allocate in memory and see if could own heap allocation
-	SDL_Window* pWindowRawPtr = SDL_CreateWindow(desc.m_pTitle, desc.m_width, desc.m_height, desc.m_flags);
-	if (!pWindowRawPtr)
+	if (m_pWindow)
+	{
+		DebugLogWarning(
+			"{}: Window is already created, skipping",
+			__FUNCTION__
+		);
+
+		return false;
+	}
+
+	// SDL owns the window memory
+	m_pWindow = SDL_CreateWindow(desc.m_pTitle, desc.m_width, desc.m_height, desc.m_flags);
+	if (!m_pWindow)
 	{
 		DebugLogError(
 			"{}: SDL_CreateWindow failed: {}",
@@ -70,9 +84,9 @@ b8 WindowImpl::CreateAppWindow(const WindowCreationDesc& desc)
 		return false;
 	}
 
-	// Assign shared pointer and custom deleter
-	m_pWindow = std::shared_ptr<SDL_Window>(pWindowRawPtr, [](SDL_Window* ptr) { SDL_DestroyWindow(ptr); });
-
+	m_width		= desc.m_width;
+	m_height	= desc.m_height;
+	m_flags		= desc.m_flags;
 #endif	// FW_SDL3
 
 	DebugLog(
@@ -86,7 +100,7 @@ b8 WindowImpl::CreateAppWindow(const WindowCreationDesc& desc)
 void* WindowImpl::GetNativeWindowHandle() const
 {
 #if defined(FW_SDL3)
-	return m_pWindow.get();
+	return m_pWindow;
 #else
 	return nullptr;
 #endif	// FW_SDL3

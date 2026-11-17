@@ -1,11 +1,21 @@
 #include "windowIncludes.h"
 
-Window::Window()
+Window::Window(CpuHeapAllocator* pHeapAllocator)
 {
 	Clear();
 
-	// TODO : Use own heap implementation to allocate memory
-	m_pWindowImpl = std::make_shared<WindowImpl>();
+	m_pHeapAllocator = pHeapAllocator;
+	if (!m_pHeapAllocator)
+	{
+		DebugLogError(
+			"{}: Window needs a heap allocator",
+			__FUNCTION__
+		);
+
+		return;
+	}
+
+	m_pWindowImpl = m_pHeapAllocator->New<WindowImpl>();
 }
 
 Window::~Window()
@@ -15,12 +25,19 @@ Window::~Window()
 
 b8 Window::Clear()
 {
+	m_pHeapAllocator	= nullptr;
+	m_pWindowImpl		= nullptr;
+
 	return true;
 }
 
 b8 Window::Release()
 {
-	m_pWindowImpl.reset();
+	if (m_pHeapAllocator)
+	{
+		m_pHeapAllocator->Delete(m_pWindowImpl);
+	}
+
 	Clear();
 
 	return true;
@@ -28,10 +45,20 @@ b8 Window::Release()
 
 b8 Window::CreateAppWindow(const WindowCreationDesc& desc)
 {
+	if (!m_pWindowImpl)
+	{
+		DebugLogError(
+			"{}: Window implementation was not allocated",
+			__FUNCTION__
+		);
+
+		return false;
+	}
+
 	return m_pWindowImpl->CreateAppWindow(desc);
 }
 
 void* Window::GetNativeWindowHandle() const
 {
-	return m_pWindowImpl->GetNativeWindowHandle();
+	return m_pWindowImpl ? m_pWindowImpl->GetNativeWindowHandle() : nullptr;
 }

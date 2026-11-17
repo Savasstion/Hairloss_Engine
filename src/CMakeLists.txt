@@ -1,9 +1,16 @@
 add_executable(${PROJECT_NAME}
+	app/app.cpp
 	app/platform/win64/win64App.cpp
 	window/window.cpp
 	window/platform/win64/win64WindowImpl.cpp
 	logging/logging.cpp
-	memory/heap/heap.cpp
+	memory/cpuHeap/cpuHeap.cpp
+	memory/cpuHeap/platform/win64/win64CpuHeapImpl.cpp
+	memory/allocator/allocator.cpp
+	memory/allocator/bumpAllocator.cpp
+	memory/allocator/freeListAllocator.cpp
+	memory/allocator/cpuHeapAllocator.cpp
+	memory/allocator/cpuMemoryResource.cpp
 )
 
 target_sources(${PROJECT_NAME} PRIVATE
@@ -17,7 +24,9 @@ target_sources(${PROJECT_NAME} PRIVATE
 	platformConfig/platform/win64/win64PlatformDefines.h
 	platformConfig/platform/win64/win64PlatformTypes.h
 	app/appIncludes.h
+	app/appDefines.h
 	app/appTypes.h
+	app/app.h
 	app/platform/win64/win64App.h
 	window/windowIncludes.h
 	window/windowDefines.h
@@ -29,8 +38,17 @@ target_sources(${PROJECT_NAME} PRIVATE
 	memory/memoryTypes.h
 	memory/memoryIncludes.h
 	memory/memoryUtils.h
-	memory/heap/heap.h
-	memory/heap/heapIncludes.h
+	memory/cpuHeap/cpuHeapIncludes.h
+	memory/cpuHeap/cpuHeapTypes.h
+	memory/cpuHeap/cpuHeap.h
+	memory/cpuHeap/platform/win64/win64CpuHeapImpl.h
+	memory/allocator/allocatorIncludes.h
+	memory/allocator/allocatorDefines.h
+	memory/allocator/allocator.h
+	memory/allocator/bumpAllocator.h
+	memory/allocator/freeListAllocator.h
+	memory/allocator/cpuHeapAllocator.h
+	memory/allocator/cpuMemoryResource.h
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE vendor)

@@ -1,12 +1,15 @@
 #pragma once
 
-class Window 
+class Window
 {
 public:
-	std::shared_ptr<WindowImpl> m_pWindowImpl;
+	CpuHeapAllocator* m_pHeapAllocator;		// not owned
+	WindowImpl* m_pWindowImpl;
 
-	Window();
+	Window(CpuHeapAllocator* pHeapAllocator);
 	~Window();
+	Window(const Window&) = delete;
+	Window& operator=(const Window&) = delete;
 	b8 Clear();
 	b8 Release();
 

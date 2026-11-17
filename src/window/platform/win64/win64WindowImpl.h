@@ -6,7 +6,7 @@ public:
 	u32 m_width;
 	u32 m_height;
 #if defined(FW_SDL3)
-	std::shared_ptr<SDL_Window> m_pWindow;
+	SDL_Window* m_pWindow;		// owned by SDL
 	SDL_WindowFlags m_flags;
 #endif	// FW_SDL3
 
