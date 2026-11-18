@@ -4,8 +4,7 @@ struct AppState
 {
 	// Main app memory
 	CpuHeap m_appHeap;
-	FreeListAllocator m_appAllocator;
-	CpuHeapAllocator m_appHeapAllocator;
+	CpuHeapBumpAllocator m_appAllocator;
 
 	// App objects
 	Window* m_pWindow = nullptr;

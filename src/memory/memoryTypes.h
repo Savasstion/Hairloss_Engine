@@ -1,27 +1,11 @@
 #pragma once
 
+// Picks the pmr memory resource a CpuHeapAllocator builds
 enum class AllocatorType
 {
-	BUMP_ALLOCATOR,
-	FREE_LIST_ALLOCATOR,
+	MONOTONIC,		// monotonic_buffer_resource, freed only by Reset()
 	UNDEFINED
-};
-
-// Offset range inside a heap
-struct MemoryAllocation
-{
-	u64 m_offsetInBytes;
-	u64 m_sizeInBytes;
 };
 
 // Forward declarations
 class CpuHeap;
-class GpuHeap;
-class Allocator;
-
-// GPU heap + allocation strategy (neither owned)
-struct GpuHeapAllocator
-{
-	GpuHeap* m_pGpuHeap			= nullptr;
-	Allocator* m_pAllocator		= nullptr;
-};

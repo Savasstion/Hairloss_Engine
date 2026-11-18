@@ -3,10 +3,10 @@
 class Window
 {
 public:
-	CpuHeapAllocator* m_pHeapAllocator;		// not owned
+	CpuHeapAllocator* m_pAllocator;		// not owned
 	WindowImpl* m_pWindowImpl;
 
-	Window(CpuHeapAllocator* pHeapAllocator);
+	Window(CpuHeapAllocator* pAllocator);
 	~Window();
 	Window(const Window&) = delete;
 	Window& operator=(const Window&) = delete;

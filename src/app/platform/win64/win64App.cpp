@@ -15,8 +15,7 @@ SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
 
 	// App heap creation
 	CpuHeap& appHeap					= pState->m_appHeap;
-	FreeListAllocator& appAllocator		= pState->m_appAllocator;
-	CpuHeapAllocator& appHeapAllocator	= pState->m_appHeapAllocator;
+	CpuHeapBumpAllocator& appAllocator	= pState->m_appAllocator;
 
 	CpuHeapCreationDesc cpuHeapDesc
 	{
@@ -27,10 +26,7 @@ SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
 	if (!appHeap.AllocateHeap(cpuHeapDesc))
 		return SDL_APP_FAILURE;
 
-	if (!appAllocator.Initialise(pState->m_appHeap.GetCapacity()))
-		return SDL_APP_FAILURE;
-
-	if (!appHeapAllocator.Initialise(&pState->m_appHeap, &pState->m_appAllocator))
+	if (!appAllocator.Initialize(&appHeap))
 		return SDL_APP_FAILURE;
 
 	// App Window creation
@@ -42,7 +38,7 @@ SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
 		defaultWindowFlags
 	};
 
-	pAppWindow = appHeapAllocator.New<Window>(&appHeapAllocator);
+	pAppWindow = appAllocator.NewObject<Window>(&appAllocator);
 	if (!pAppWindow)
 		return SDL_APP_FAILURE;
 
@@ -102,10 +98,9 @@ void SDL_AppQuit(void* pAppState, SDL_AppResult)
 			pState->m_pRenderer = nullptr;
 		}
 
-		pState->m_appHeapAllocator.Delete(pState->m_pWindow);
+		pState->m_appAllocator.DeleteObject(pState->m_pWindow);
 
 		// Root memory last
-		pState->m_appHeapAllocator.Release();
 		pState->m_appAllocator.Release();
 		pState->m_appHeap.Release();
 	}

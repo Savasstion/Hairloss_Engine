@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <concepts>
+#include <type_traits>
 #include <vector>
 #include <algorithm>
 #include <memory_resource>

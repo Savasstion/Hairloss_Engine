@@ -6,11 +6,9 @@ add_executable(${PROJECT_NAME}
 	logging/logging.cpp
 	memory/cpuHeap/cpuHeap.cpp
 	memory/cpuHeap/platform/win64/win64CpuHeapImpl.cpp
-	memory/allocator/allocator.cpp
-	memory/allocator/bumpAllocator.cpp
-	memory/allocator/freeListAllocator.cpp
 	memory/allocator/cpuHeapAllocator.cpp
-	memory/allocator/cpuMemoryResource.cpp
+	memory/allocator/cpuHeapBumpAllocator.cpp
+	memory/allocator/noGrowthMemoryResource.cpp
 )
 
 target_sources(${PROJECT_NAME} PRIVATE
@@ -43,12 +41,9 @@ target_sources(${PROJECT_NAME} PRIVATE
 	memory/cpuHeap/cpuHeap.h
 	memory/cpuHeap/platform/win64/win64CpuHeapImpl.h
 	memory/allocator/allocatorIncludes.h
-	memory/allocator/allocatorDefines.h
-	memory/allocator/allocator.h
-	memory/allocator/bumpAllocator.h
-	memory/allocator/freeListAllocator.h
 	memory/allocator/cpuHeapAllocator.h
-	memory/allocator/cpuMemoryResource.h
+	memory/allocator/cpuHeapBumpAllocator.h
+	memory/allocator/noGrowthMemoryResource.h
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE vendor)

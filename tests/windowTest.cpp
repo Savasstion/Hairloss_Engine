@@ -12,16 +12,15 @@ TEST_CASE("Window Creation", "[window]")
 #endif	//	FW_SDL3
 	};
 
-	TestCpuHeap<FreeListAllocator> testHeap(MB(1));
+	TestCpuHeap<CpuHeapBumpAllocator> testHeap(MB(1));
 
-	Window* pWindow = testHeap.m_heapAllocator.New<Window>(&testHeap.m_heapAllocator);
+	Window* pWindow = testHeap.m_allocator.NewObject<Window>(&testHeap.m_allocator);
 	REQUIRE(pWindow != nullptr);
+	REQUIRE(testHeap.IsInHeap(pWindow));
 
 	b8 isSuccess = pWindow->CreateAppWindow(windowDesc);
 	REQUIRE(isSuccess);
 
-	// Window and impl are freed
-	REQUIRE(testHeap.m_heapAllocator.Delete(pWindow));
+	REQUIRE(testHeap.m_allocator.DeleteObject(pWindow));
 	REQUIRE(pWindow == nullptr);
-	REQUIRE(testHeap.m_allocator.GetUsedBytes() == 0);
 }

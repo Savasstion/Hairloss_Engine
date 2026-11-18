@@ -2,147 +2,74 @@
 
 CpuHeapAllocator::CpuHeapAllocator()
 {
-	Clear();
+	CpuHeapAllocator::Clear();
 }
 
 CpuHeapAllocator::~CpuHeapAllocator()
 {
-	Release();
+	CpuHeapAllocator::Release();
 }
 
 b8 CpuHeapAllocator::Clear()
 {
 	m_pCpuHeap		= nullptr;
-	m_pAllocator	= nullptr;
+	m_allocatorType	= AllocatorType::UNDEFINED;
+	m_isInitialized	= false;
 
 	return true;
 }
 
 b8 CpuHeapAllocator::Release()
 {
-	Clear();
+	CpuHeapAllocator::Clear();
 
 	return true;
 }
 
-b8 CpuHeapAllocator::Initialise(CpuHeap* pCpuHeap, Allocator* pAllocator)
+std::pmr::polymorphic_allocator<std::byte> CpuHeapAllocator::GetPolymorphicAllocator()
 {
-	if (!pCpuHeap || !pAllocator || !pCpuHeap->IsAllocated() || !pAllocator->m_isInitialised)
+	return std::pmr::polymorphic_allocator<std::byte>(GetMemoryResource());
+}
+
+// Validates and stores the heap, the subclass then builds its resource
+b8 CpuHeapAllocator::BeginInitialize(CpuHeap* pCpuHeap)
+{
+	if (m_isInitialized)
 	{
-		DebugLogError(
-			"{}: Needs an allocated heap and an initialised allocator",
+		DebugLogWarning(
+			"{}: CpuHeapAllocator is already initialized, skipping",
 			__FUNCTION__
 		);
 
 		return false;
 	}
 
-	if (pAllocator->GetCapacity() > pCpuHeap->GetCapacity())
+	if (!pCpuHeap || !pCpuHeap->IsAllocated())
 	{
 		DebugLogError(
-			"{}: Allocator capacity {} is larger than the heap capacity {}",
-			__FUNCTION__,
-			pAllocator->GetCapacity(),
-			pCpuHeap->GetCapacity()
+			"{}: Needs an allocated CpuHeap",
+			__FUNCTION__
 		);
 
 		return false;
 	}
 
-	m_pCpuHeap		= pCpuHeap;
-	m_pAllocator	= pAllocator;
+	m_pCpuHeap = pCpuHeap;
 
 	return true;
 }
 
-void* CpuHeapAllocator::Allocate(const u64 sizeInBytes, const u64 alignmentInBytes)
+b8 CpuHeapAllocator::CheckInitialized(const char* pCallerName) const
 {
-	if (!m_pCpuHeap || !m_pAllocator)
+	if (!m_isInitialized)
 	{
 		DebugLogError(
-			"{}: Heap allocator is not initialised",
-			__FUNCTION__
-		);
-
-		return nullptr;
-	}
-
-	if (sizeInBytes == 0 || !IsPowerOfTwo(alignmentInBytes))
-	{
-		DebugLogError(
-			"{}: Invalid size {} or alignment {} (alignment must be a power of two)",
-			__FUNCTION__,
-			sizeInBytes,
-			alignmentInBytes
-		);
-
-		return nullptr;
-	}
-
-	// Header sits right before the returned pointer
-	const u64 blockAlignmentInBytes	= alignmentInBytes > alignof(MemoryAllocation) ? alignmentInBytes : alignof(MemoryAllocation);
-	const u64 headerSizeInBytes		= AlignUp<u64>(sizeof(MemoryAllocation), blockAlignmentInBytes);
-
-	if (sizeInBytes > ~0ull - headerSizeInBytes)
-	{
-		DebugLogError(
-			"{}: Size {} overflows with the allocation header",
-			__FUNCTION__,
-			sizeInBytes
-		);
-
-		return nullptr;
-	}
-
-	MemoryAllocation block{};
-	if (!m_pAllocator->Allocate(headerSizeInBytes + sizeInBytes, blockAlignmentInBytes, block))
-	{
-		return nullptr;
-	}
-
-	std::byte* pData = m_pCpuHeap->GetBasePointer() + block.m_offsetInBytes + headerSizeInBytes;
-	new (pData - sizeof(MemoryAllocation)) MemoryAllocation{ block };
-
-	return pData;
-}
-
-b8 CpuHeapAllocator::Free(void* pData)
-{
-	if (!pData)
-	{
-		return true;
-	}
-
-	if (!IsInHeap(pData))
-	{
-		DebugLogError(
-			"{}: Pointer was not allocated from this heap",
-			__FUNCTION__
+			"{}: CpuHeapAllocator is not initialized",
+			pCallerName
 		);
 
 		return false;
 	}
 
-	// Bump allocators free on Reset()
-	if (!m_pAllocator->SupportsFree())
-	{
-		return true;
-	}
-
-	const MemoryAllocation* pHeader = reinterpret_cast<const MemoryAllocation*>(static_cast<std::byte*>(pData) - sizeof(MemoryAllocation));
-
-	return m_pAllocator->Free(*pHeader);
-}
-
-b8 CpuHeapAllocator::IsInHeap(const void* pData) const
-{
-	if (!m_pCpuHeap)
-	{
-		return false;
-	}
-
-	const std::byte* pBase	= m_pCpuHeap->GetBasePointer();
-	const std::byte* pByte	= static_cast<const std::byte*>(pData);
-
-	return pByte >= pBase && pByte < pBase + m_pCpuHeap->GetCapacity();
+	return true;
 }

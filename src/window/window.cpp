@@ -1,21 +1,21 @@
 #include "windowIncludes.h"
 
-Window::Window(CpuHeapAllocator* pHeapAllocator)
+Window::Window(CpuHeapAllocator* pAllocator)
 {
 	Clear();
 
-	m_pHeapAllocator = pHeapAllocator;
-	if (!m_pHeapAllocator)
+	m_pAllocator = pAllocator;
+	if (!m_pAllocator)
 	{
 		DebugLogError(
-			"{}: Window needs a heap allocator",
+			"{}: Window needs an allocator",
 			__FUNCTION__
 		);
 
 		return;
 	}
 
-	m_pWindowImpl = m_pHeapAllocator->New<WindowImpl>();
+	m_pWindowImpl = m_pAllocator->NewObject<WindowImpl>();
 }
 
 Window::~Window()
@@ -25,17 +25,17 @@ Window::~Window()
 
 b8 Window::Clear()
 {
-	m_pHeapAllocator	= nullptr;
-	m_pWindowImpl		= nullptr;
+	m_pAllocator	= nullptr;
+	m_pWindowImpl	= nullptr;
 
 	return true;
 }
 
 b8 Window::Release()
 {
-	if (m_pHeapAllocator)
+	if (m_pAllocator)
 	{
-		m_pHeapAllocator->Delete(m_pWindowImpl);
+		m_pAllocator->DeleteObject(m_pWindowImpl);
 	}
 
 	Clear();
