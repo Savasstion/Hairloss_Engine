@@ -8,7 +8,7 @@ add_executable(${PROJECT_NAME}
 	memory/cpuHeap/platform/win64/win64CpuHeapImpl.cpp
 	memory/allocator/cpuHeapAllocator.cpp
 	memory/allocator/cpuHeapBumpAllocator.cpp
-	memory/allocator/noGrowthMemoryResource.cpp
+	memory/allocator/memoryResource/noGrowthMemoryResource.cpp
 )
 
 target_sources(${PROJECT_NAME} PRIVATE
@@ -43,7 +43,8 @@ target_sources(${PROJECT_NAME} PRIVATE
 	memory/allocator/allocatorIncludes.h
 	memory/allocator/cpuHeapAllocator.h
 	memory/allocator/cpuHeapBumpAllocator.h
-	memory/allocator/noGrowthMemoryResource.h
+	memory/allocator/memoryResource/memoryResourceIncludes.h
+	memory/allocator/memoryResource/noGrowthMemoryResource.h
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE vendor)
