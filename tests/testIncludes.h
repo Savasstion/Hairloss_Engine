@@ -17,7 +17,7 @@ struct TestCpuHeap
 	TestCpuHeap(const u64 capacityInBytes)
 	{
 		m_cpuHeap.AllocateHeap(CpuHeapCreationDesc{ capacityInBytes, 0 });
-		m_allocator.Initialise(&m_cpuHeap);
+		m_allocator.Initialize(&m_cpuHeap);
 	}
 
 	b8 IsInHeap(const void* pData) const

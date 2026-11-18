@@ -96,3 +96,34 @@ TEST_CASE("CpuHeapBumpAllocator Backs pmr Containers", "[memory]")
 	REQUIRE(values[99] == 297);
 	REQUIRE(testHeap.IsInHeap(values.data()));
 }
+
+TEST_CASE("CpuHeapBumpAllocator Refuses A Released Heap", "[memory]")
+{
+	TestCpuHeap<CpuHeapBumpAllocator> testHeap(KB(64));
+	destructedCount = 0;
+
+	CountedObject* pObject = testHeap.m_allocator.NewObject<CountedObject>(1ull);
+	REQUIRE(testHeap.m_cpuHeap.Release());
+
+	REQUIRE(testHeap.m_allocator.NewObject<CountedObject>(2ull) == nullptr);
+	REQUIRE_FALSE(testHeap.m_allocator.Reset());
+
+	// The object's memory is gone, so it is not touched
+	REQUIRE_FALSE(testHeap.m_allocator.DeleteObject(pObject));
+	REQUIRE(pObject == nullptr);
+	REQUIRE(destructedCount == 0);
+}
+
+TEST_CASE("CpuHeapBumpAllocator DeleteObject After Release Still Destroys", "[memory]")
+{
+	TestCpuHeap<CpuHeapBumpAllocator> testHeap(KB(64));
+	destructedCount = 0;
+
+	CountedObject* pObject = testHeap.m_allocator.NewObject<CountedObject>(1ull);
+	REQUIRE(testHeap.m_allocator.Release());
+
+	// Heap memory is still there, so the destructor runs even though nothing is freed
+	REQUIRE_FALSE(testHeap.m_allocator.DeleteObject(pObject));
+	REQUIRE(pObject == nullptr);
+	REQUIRE(destructedCount == 1);
+}

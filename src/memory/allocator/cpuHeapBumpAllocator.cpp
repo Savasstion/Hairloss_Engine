@@ -1,6 +1,6 @@
 #include "allocatorIncludes.h"
 
-// No buffer until Initialise, so early use aborts instead of using the CRT heap
+// No buffer until Initialize, so early use aborts instead of using the CRT heap
 CpuHeapBumpAllocator::CpuHeapBumpAllocator()
 	: m_monotonicResource(GetNoGrowthMemoryResource())
 {
@@ -24,8 +24,7 @@ b8 CpuHeapBumpAllocator::Clear()
 b8 CpuHeapBumpAllocator::Release()
 {
 	// Drop the heap buffer before the heap is freed
-	std::destroy_at(&m_monotonicResource);
-	std::construct_at(&m_monotonicResource, GetNoGrowthMemoryResource());
+	RebuildResource(nullptr, 0);
 
 	CpuHeapAllocator::Release();
 
@@ -41,14 +40,7 @@ b8 CpuHeapBumpAllocator::Initialize(CpuHeap* pCpuHeap)
 		return false;
 	}
 
-	// Takes its buffer only at construction, so rebuild it over the heap
-	std::destroy_at(&m_monotonicResource);
-	std::construct_at(
-		&m_monotonicResource,
-		pCpuHeap->GetBasePointer(),
-		static_cast<size_t>(pCpuHeap->GetCapacity()),
-		GetNoGrowthMemoryResource()
-	);
+	RebuildResource(pCpuHeap->GetBasePointer(), static_cast<size_t>(pCpuHeap->GetCapacity()));
 	m_isInitialized = true;
 
 	return true;
@@ -56,24 +48,13 @@ b8 CpuHeapBumpAllocator::Initialize(CpuHeap* pCpuHeap)
 
 b8 CpuHeapBumpAllocator::Reset()
 {
-	if (!m_isInitialized)
+	if (!CheckInitialized(__FUNCTION__) || !CheckHeapAllocated(__FUNCTION__))
 	{
-		DebugLogError(
-			"{}: CpuHeapAllocator is not initialised",
-			__FUNCTION__
-		);
-
 		return false;
 	}
 
 	// release() may keep its place in the initial buffer, so rebuild to rewind
-	std::destroy_at(&m_monotonicResource);
-	std::construct_at(
-		&m_monotonicResource,
-		m_pCpuHeap->GetBasePointer(),
-		static_cast<size_t>(m_pCpuHeap->GetCapacity()),
-		GetNoGrowthMemoryResource()
-	);
+	RebuildResource(m_pCpuHeap->GetBasePointer(), static_cast<size_t>(m_pCpuHeap->GetCapacity()));
 
 	return true;
 }
@@ -81,4 +62,19 @@ b8 CpuHeapBumpAllocator::Reset()
 std::pmr::memory_resource* CpuHeapBumpAllocator::GetMemoryResource()
 {
 	return &m_monotonicResource;
+}
+
+// Takes its buffer only at construction, so rebuild in place. nullptr = no buffer
+void CpuHeapBumpAllocator::RebuildResource(std::byte* pBuffer, const size_t sizeInBytes)
+{
+	std::destroy_at(&m_monotonicResource);
+
+	if (pBuffer)
+	{
+		std::construct_at(&m_monotonicResource, pBuffer, sizeInBytes, GetNoGrowthMemoryResource());
+	}
+	else
+	{
+		std::construct_at(&m_monotonicResource, GetNoGrowthMemoryResource());
+	}
 }

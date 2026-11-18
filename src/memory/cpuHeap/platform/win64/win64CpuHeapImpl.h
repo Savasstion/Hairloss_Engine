@@ -5,7 +5,6 @@ class CpuHeapImpl
 public:
 	std::byte* m_pBase;
 	u64 m_capacity;
-	u64 m_alignment;
 	b8 m_isAllocated;
 
 	CpuHeapImpl();

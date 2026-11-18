@@ -16,7 +16,6 @@ b8 CpuHeapImpl::Clear()
 {
 	m_pBase			= nullptr;
 	m_capacity		= 0;
-	m_alignment		= 0;
 	m_isAllocated	= false;
 
 	return true;
@@ -24,9 +23,12 @@ b8 CpuHeapImpl::Clear()
 
 b8 CpuHeapImpl::Release()
 {
+	b8 isReleased = true;
+
 	if (m_pBase)
 	{
-		if (!VirtualFree(m_pBase, 0, MEM_RELEASE))
+		isReleased = VirtualFree(m_pBase, 0, MEM_RELEASE) != 0;
+		if (!isReleased)
 		{
 			LogError(
 				"{}: VirtualFree failed: {}",
@@ -46,7 +48,7 @@ b8 CpuHeapImpl::Release()
 
 	Clear();
 
-	return true;
+	return isReleased;
 }
 
 b8 CpuHeapImpl::AllocateHeap(const CpuHeapCreationDesc& desc)
@@ -112,7 +114,6 @@ b8 CpuHeapImpl::AllocateHeap(const CpuHeapCreationDesc& desc)
 
 	m_pBase			= static_cast<std::byte*>(pBaseRawPtr);
 	m_capacity		= desc.m_capacityInBytes;
-	m_alignment		= alignmentInBytes;
 	m_isAllocated	= true;
 
 	DebugLog(

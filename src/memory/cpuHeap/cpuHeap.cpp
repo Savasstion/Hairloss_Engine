@@ -22,15 +22,17 @@ b8 CpuHeap::Clear()
 
 b8 CpuHeap::Release()
 {
+	b8 isReleased = true;
+
 	if (m_pCpuHeapImpl)
 	{
-		m_pCpuHeapImpl->Release();
+		isReleased = m_pCpuHeapImpl->Release();
 		delete m_pCpuHeapImpl;
 	}
 
 	Clear();
 
-	return true;
+	return isReleased;
 }
 
 b8 CpuHeap::AllocateHeap(const CpuHeapCreationDesc& desc)

@@ -328,13 +328,20 @@ Both return `b8` (`true` on success).
   - `CpuHeapAllocator` is abstract and can't be instantiated.
   - Each subclass sets its `AllocatorType` tag and owns its concrete pmr resource as a member
     (`CpuHeapBumpAllocator`: `std::pmr::monotonic_buffer_resource`, `MONOTONIC`). The resource is built over
-    the heap's start and size in `Initialise(pCpuHeap)` and exposed by `GetMemoryResource()`.
-  - Resources get their buffer only at construction, so `Initialise` / `Reset` / `Release` rebuild them
+    the heap's start and size in `Initialize(pCpuHeap)` and exposed by `GetMemoryResource()`.
+  - Resources get their buffer only at construction, so `Initialize` / `Reset` / `Release` rebuild them
     in place (`std::destroy_at` + `std::construct_at`). MSVC's `release()` doesn't rewind the initial buffer.
   - Upstream is always `GetNoGrowthMemoryResource()`: an exhausted heap logs and aborts, never grows
     onto the CRT heap, and never throws.
   - `NewObject<T>` / `DeleteObject` wrap `polymorphic_allocator::new_object` / `delete_object`.
-    `DeleteObject` takes the type the object was created as, and accepts `const T*`.
+    `DeleteObject` needs the exact created type (a base pointer would free the wrong address and size),
+    so polymorphic classes it deletes must be `final` (a `static_assert` checks it). It accepts `const T*`.
+  - **Teardown order: release the allocator before its heap.** If the heap is released first, the
+    allocator refuses `NewObject` / `Reset`, and `DeleteObject` only nulls the pointer, since the
+    object's memory is gone. If the allocator is released first, `DeleteObject` still runs the
+    destructor but frees nothing.
+  - `CpuHeapBumpAllocator::Reset()` invalidates **every** allocation, including pmr containers on
+    `GetMemoryResource()`. Only use it for memory with that lifetime, such as per-frame data.
   - For STL containers, use `std::pmr` containers on `GetMemoryResource()`.
 - **Exceptions:**
   - `CpuHeap` allocates its `CpuHeapImpl` with `new` / `delete`, because the heap can't allocate itself.

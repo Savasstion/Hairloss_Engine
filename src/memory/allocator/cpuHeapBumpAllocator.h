@@ -1,7 +1,7 @@
 #pragma once
 
 // Linear allocator over a CpuHeap, freed only by Reset()
-class CpuHeapBumpAllocator : public CpuHeapAllocator
+class CpuHeapBumpAllocator final : public CpuHeapAllocator
 {
 public:
 	std::pmr::monotonic_buffer_resource m_monotonicResource;
@@ -12,6 +12,8 @@ public:
 	b8 Release();
 
 	b8 Initialize(CpuHeap* pCpuHeap);
-	b8 Reset();
+	b8 Reset();		// invalidates every allocation, including pmr containers on GetMemoryResource()
 	std::pmr::memory_resource* GetMemoryResource() override;
+private:
+	void RebuildResource(std::byte* pBuffer, const size_t sizeInBytes);
 };
