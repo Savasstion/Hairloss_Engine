@@ -2,7 +2,7 @@
 
 struct AppState
 {
-	// Main app memory, owns its allocator
+	// Main app memory, flexible allocation for more permanent app-related objects like systems
 	CpuHeap m_appHeap;
 
 	// App objects
