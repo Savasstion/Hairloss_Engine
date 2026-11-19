@@ -20,7 +20,7 @@ SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
 	{
 		defaultAppHeapCapacityInBytes,
 		0,
-		AllocatorType::MONOTONIC
+		AllocatorType::FREE_LIST
 	};
 
 	if (!appHeap.AllocateHeap(cpuHeapDesc))
