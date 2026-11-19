@@ -12,15 +12,15 @@ TEST_CASE("Window Creation", "[window]")
 #endif	//	FW_SDL3
 	};
 
-	TestCpuHeap<CpuHeapBumpAllocator> testHeap(MB(1));
+	TestCpuHeap testHeap(MB(1));
 
-	Window* pWindow = testHeap.m_allocator.NewObject<Window>(&testHeap.m_allocator);
+	Window* pWindow = testHeap.GetAllocator()->NewObject<Window>(testHeap.GetAllocator());
 	REQUIRE(pWindow != nullptr);
 	REQUIRE(testHeap.IsInHeap(pWindow));
 
 	b8 isSuccess = pWindow->CreateAppWindow(windowDesc);
 	REQUIRE(isSuccess);
 
-	REQUIRE(testHeap.m_allocator.DeleteObject(pWindow));
+	REQUIRE(testHeap.GetAllocator()->DeleteObject(pWindow));
 	REQUIRE(pWindow == nullptr);
 }

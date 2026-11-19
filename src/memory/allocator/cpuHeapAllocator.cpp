@@ -73,18 +73,3 @@ b8 CpuHeapAllocator::CheckInitialized(const char* pCallerName) const
 
 	return true;
 }
-
-b8 CpuHeapAllocator::CheckHeapAllocated(const char* pCallerName) const
-{
-	if (!m_pCpuHeap || !m_pCpuHeap->IsAllocated())
-	{
-		DebugLogError(
-			"{}: CpuHeap was released before its allocator",
-			pCallerName
-		);
-
-		return false;
-	}
-
-	return true;
-}

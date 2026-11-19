@@ -15,7 +15,8 @@ CpuHeap::~CpuHeap()
 
 b8 CpuHeap::Clear()
 {
-	m_pCpuHeapImpl = nullptr;
+	m_pCpuHeapImpl	= nullptr;
+	m_pAllocator	= nullptr;
 
 	return true;
 }
@@ -23,6 +24,17 @@ b8 CpuHeap::Clear()
 b8 CpuHeap::Release()
 {
 	b8 isReleased = true;
+
+	// Allocator first, so it drops its buffer before the memory is freed
+	if (m_pAllocator)
+	{
+		delete m_pAllocator;
+
+		DebugLog(
+			"{}: Allocator deleted",
+			__FUNCTION__
+		);
+	}
 
 	if (m_pCpuHeapImpl)
 	{
@@ -47,7 +59,19 @@ b8 CpuHeap::AllocateHeap(const CpuHeapCreationDesc& desc)
 		return false;
 	}
 
-	return m_pCpuHeapImpl->AllocateHeap(desc);
+	if (!m_pCpuHeapImpl->AllocateHeap(desc))
+	{
+		return false;
+	}
+
+	if (!CreateAllocator(desc.m_allocatorType))
+	{
+		m_pCpuHeapImpl->Release();
+
+		return false;
+	}
+
+	return true;
 }
 
 std::byte* CpuHeap::GetBasePointer() const
@@ -63,4 +87,43 @@ u64 CpuHeap::GetCapacity() const
 b8 CpuHeap::IsAllocated() const
 {
 	return m_pCpuHeapImpl ? m_pCpuHeapImpl->IsAllocated() : false;
+}
+
+CpuHeapAllocator* CpuHeap::GetAllocator() const
+{
+	return m_pAllocator;
+}
+
+// Creates the allocator over this heap's memory
+b8 CpuHeap::CreateAllocator(const AllocatorType allocatorType)
+{
+	switch (allocatorType)
+	{
+	case AllocatorType::MONOTONIC:
+	{
+		CpuHeapBumpAllocator* pBumpAllocator = new CpuHeapBumpAllocator();
+		if (!pBumpAllocator->Initialize(this))
+		{
+			delete pBumpAllocator;
+
+			return false;
+		}
+
+		m_pAllocator = pBumpAllocator;
+
+		DebugLog(
+			"{}: Created CpuHeapBumpAllocator",
+			__FUNCTION__
+		);
+
+		return true;
+	}
+	default:
+		DebugLogError(
+			"{}: Unsupported AllocatorType",
+			__FUNCTION__
+		);
+
+		return false;
+	}
 }

@@ -28,7 +28,7 @@ src/
 ├── window/                  # Window + platform/win64/win64WindowImpl
 ├── logging/                 # Log / DebugLog family
 └── memory/                  # memoryTypes.h / memoryUtils.h / memoryIncludes.h
-    ├── cpuHeap/             # CpuHeap + platform/win64/win64CpuHeapImpl (VirtualAlloc)
+    ├── cpuHeap/             # CpuHeap (owns its allocator) + platform/win64/win64CpuHeapImpl (VirtualAlloc)
     └── allocator/           # CpuHeapAllocator (abstract, pmr), CpuHeapBumpAllocator
         └── memoryResource/  # NoGrowthMemoryResource (pmr upstream, aborts when the heap is full)
 ```
@@ -272,7 +272,8 @@ public:
 - No in-class initializers: `Clear()` sets members. Plain data structs (`AppState`) may use `= nullptr`.
 - Private helpers go last under `private:`, protected ones under `protected:`.
 - **No virtuals or inheritance for platforms.** The one exception is runtime strategy hierarchies:
-  abstract `CpuHeapAllocator` → `CpuHeapBumpAllocator`, via the pure virtual `GetMemoryResource()`.
+  abstract `CpuHeapAllocator` → `CpuHeapBumpAllocator`, via the pure virtuals `GetMemoryResource()` and
+  `Reset()`, plus a virtual `Release()`.
   - Overrides use `override`.
   - Constructors, destructors and `Release()` call their own class's `Clear()` explicitly
     (`CpuHeapBumpAllocator::Clear()`), because virtual dispatch doesn't reach the child there.
@@ -333,8 +334,16 @@ Both return `b8` (`true` on success).
   `CpuHeapAllocator*` (constructor or desc) and keeps it as a non-owning `m_pAllocator`, which must
   outlive its allocations.
 
-**`CpuHeap` owns and creates the memory. Allocators hand it out through `std::pmr`.**
-- `CpuHeapAllocator` is abstract and can't be instantiated.
+**`CpuHeap` owns the memory and its one allocator. The allocator hands it out through `std::pmr`.**
+- `AllocateHeap` creates the allocator picked by `CpuHeapCreationDesc::m_allocatorType` (zeroed = `MONOTONIC`)
+  and initializes it over the memory. `UNDEFINED` fails and gives the memory back.
+- Allocate through `heap.GetAllocator()->NewObject<T>()`. `GetAllocator()` is `nullptr` before
+  `AllocateHeap` and after `Release()`.
+- One allocator per heap. Subclass `Initialize` is private with `friend class CpuHeap;`, so only the
+  heap can initialize its allocator. Two allocators over one heap would hand out the same memory.
+- `CpuHeap` has no `NewObject` template, because `cpuHeap.h` can be read before the allocator headers.
+- `CpuHeapAllocator` is abstract and can't be instantiated. Pure virtuals: `GetMemoryResource()`, `Reset()`.
+- `Release()` is virtual, so it's safe through the `GetAllocator()` base pointer.
 - Each subclass sets its `AllocatorType` tag and owns its concrete pmr resource as a member
   (`CpuHeapBumpAllocator`: `std::pmr::monotonic_buffer_resource`, `MONOTONIC`).
   - The resource is built over the heap's start and size in `Initialize(pCpuHeap)` and exposed by `GetMemoryResource()`.
@@ -346,19 +355,28 @@ Both return `b8` (`true` on success).
   - `DeleteObject` needs the exact created type, because a base pointer would free the wrong address
     and size. Polymorphic classes it deletes must be `final` (checked by a `static_assert`).
   - It accepts `const T*`.
-- **Teardown order: release the allocator before its heap.**
-  - Heap released first: the allocator refuses `NewObject` / `Reset`, and `DeleteObject` only nulls
-    the pointer, because the object's memory is gone.
-  - Allocator released first: `DeleteObject` still runs the destructor but frees nothing.
-- `CpuHeapBumpAllocator::Reset()` invalidates **every** allocation, including pmr containers on
-  `GetMemoryResource()`. Only use it for memory with that lifetime (e.g. per-frame data).
+- **Teardown: `DeleteObject` engine objects before `CpuHeap::Release()`.**
+  - `CpuHeap::Release()` deletes its allocator before freeing the memory, so that order is automatic.
+  - Allocator released early by hand: `DeleteObject` still runs the destructor but frees nothing.
+- **Dangling pointers are left as is. Be wary of object lifetimes.**
+  - After `CpuHeap::Release()`, every `CpuHeapAllocator*` copied from `GetAllocator()` (e.g. `Window::m_pAllocator`)
+    and every pointer into the heap dangles. Nothing checks or nulls them.
+  - Before using a stored pointer, make sure its heap and allocator still outlive it.
+- **`Reset()` / `CpuHeap::Release()` with live objects is fine when everything is in that heap.**
+  - Both invalidate **every** allocation at once, without running destructors (pmr containers on
+    `GetMemoryResource()` too).
+  - Fine when every live object, its impl and everything they allocate came from that same heap,
+    so it is all dropped together.
+  - Not fine when a live object owns something outside the heap (framework objects such as
+    `SDL_Window`, other heaps): `DeleteObject` it first, or that resource leaks.
+  - Don't touch the dropped objects or their pointers afterwards.
 - For STL containers, use `std::pmr` containers on `GetMemoryResource()`.
 
 **Exceptions** (the only places allowed to skip the engine heap)
-- `CpuHeap` allocates its `CpuHeapImpl` with `new` / `delete`, because the heap can't allocate itself.
+- `CpuHeap` allocates its `CpuHeapImpl` and its allocator with `new` / `delete`, because the heap
+  can't allocate itself.
 - The root `AppState` is static (`GetAppState()` in `app/app.cpp`, platform agnostic) and owns the
-  root `CpuHeap` and `CpuHeapBumpAllocator` by value. Entry points get it from `GetAppState()` and
-  never declare their own.
+  root `CpuHeap` by value. Entry points get it from `GetAppState()` and never declare their own.
 
 **Framework memory belongs to the framework.** Create and destroy framework objects through their
 API (`SDL_CreateWindow` / `SDL_DestroyWindow`), store raw pointers, and destroy them in `Release()`.
@@ -389,10 +407,11 @@ multiplied then truncated to `u64`. Never pass negative values (UB for floats, w
   `SDL_AppEvent`, `SDL_AppIterate` and `SDL_AppQuit` live in `app/platform/<tag>/<tag>App.cpp`, inside
   platform + framework guards, which also include `SDL_main.h` (§3.3).
 - `win64App.h` declares the callbacks `extern "C"` with `SDLCALL`, to match SDL.
-- **`SDL_AppInit`:** gets `GetAppState()`, allocates the root heap, initializes the allocator over it,
+- **`SDL_AppInit`:** gets `GetAppState()`, allocates the root heap, takes its `GetAllocator()`,
   creates engine objects with `NewObject`, and hands the state over via `*ppAppState`. The other
   callbacks use `static_cast<AppState*>(pAppState)`.
-- **`SDL_AppQuit`:** destroys in reverse: framework objects, then engine objects (`DeleteObject`), then root memory.
+- **`SDL_AppQuit`:** destroys in reverse: framework objects, then engine objects (`DeleteObject`), then
+  `m_appHeap.Release()`, which also deletes the allocator.
 - `AppState::m_pRenderer` is temporary (`// TODO : Make own Graphic System`). New rendering work
   follows §2.2 and uses the `GAPI_` macros.
 
@@ -414,8 +433,9 @@ multiplied then truncated to `u64`. Never pass negative values (UB for floats, w
 
 ## 10. Tests
 - One `<module>Test.cpp` per module, each starting with `#include "testIncludes.h"`.
-- `testIncludes.h` includes Catch2 and the engine Includes, and provides `TestCpuHeap<TAllocator>`:
-  a test-owned heap and allocator, plus `IsInHeap()`.
+- `testIncludes.h` includes Catch2 and the engine Includes, and provides `TestCpuHeap`:
+  a test-owned heap that `REQUIRE`s its own setup, `GetAllocator()` (forwards to the heap, `nullptr`
+  after `Release()`), plus `IsInHeap()`.
 - `TEST_CASE("Readable Name", "[module]")`, Allman braces, `REQUIRE` on `b8` results.
 - Use abstraction classes, never impls. Fill framework desc fields inside `FW_` guards.
 

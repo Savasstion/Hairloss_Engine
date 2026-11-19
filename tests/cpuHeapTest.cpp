@@ -39,3 +39,30 @@ TEST_CASE("CpuHeap Refuses Reallocation And Releases", "[memory]")
 	REQUIRE_FALSE(cpuHeap.AllocateHeap(CpuHeapCreationDesc{ KB(64), 16 }));
 	REQUIRE(cpuHeap.Release());
 }
+
+TEST_CASE("CpuHeap Creates Its Allocator", "[memory]")
+{
+	CpuHeap cpuHeap;
+	REQUIRE(cpuHeap.GetAllocator() == nullptr);
+
+	REQUIRE(cpuHeap.AllocateHeap(CpuHeapCreationDesc{ KB(64), 0, AllocatorType::MONOTONIC }));
+	REQUIRE(cpuHeap.GetAllocator() != nullptr);
+	REQUIRE(cpuHeap.GetAllocator()->m_allocatorType == AllocatorType::MONOTONIC);
+	REQUIRE(cpuHeap.GetAllocator()->m_pCpuHeap == &cpuHeap);
+
+	REQUIRE(cpuHeap.Release());
+	REQUIRE(cpuHeap.GetAllocator() == nullptr);
+}
+
+TEST_CASE("CpuHeap Rejects An Undefined Allocator", "[memory]")
+{
+	CpuHeap cpuHeap;
+
+	REQUIRE_FALSE(cpuHeap.AllocateHeap(CpuHeapCreationDesc{ KB(64), 0, AllocatorType::UNDEFINED }));
+	REQUIRE_FALSE(cpuHeap.IsAllocated());
+	REQUIRE(cpuHeap.GetAllocator() == nullptr);
+
+	// Memory was given back, so a valid desc still works
+	REQUIRE(cpuHeap.AllocateHeap(CpuHeapCreationDesc{ KB(64), 0 }));
+	REQUIRE(cpuHeap.GetAllocator() != nullptr);
+}

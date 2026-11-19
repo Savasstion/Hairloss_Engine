@@ -4,6 +4,7 @@ class CpuHeap
 {
 public:
 	CpuHeapImpl* m_pCpuHeapImpl;	// CRT allocated
+	CpuHeapAllocator* m_pAllocator;	// CRT allocated, owned
 
 	CpuHeap();
 	~CpuHeap();
@@ -16,4 +17,7 @@ public:
 	std::byte* GetBasePointer() const;
 	u64 GetCapacity() const;
 	b8 IsAllocated() const;
+	CpuHeapAllocator* GetAllocator() const;		// nullptr until AllocateHeap succeeds
+private:
+	b8 CreateAllocator(const AllocatorType allocatorType);
 };

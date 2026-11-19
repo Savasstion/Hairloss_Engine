@@ -6,18 +6,23 @@
 #include "../src/memory/memoryIncludes.h"
 #include "../src/window/windowIncludes.h"
 
-// Test-owned heap and allocator
-// Example use: TestCpuHeap<CpuHeapBumpAllocator> testHeap(KB(64)); testHeap.m_allocator.NewObject<Foo>();
-template<typename TAllocator>
+// Test-owned heap and the allocator it creates
+// Example use: TestCpuHeap testHeap(KB(64)); testHeap.GetAllocator()->NewObject<Foo>();
 struct TestCpuHeap
 {
 	CpuHeap m_cpuHeap;
-	TAllocator m_allocator;
 
+	// Fails the test at setup if the heap can't be allocated
 	TestCpuHeap(const u64 capacityInBytes)
 	{
-		m_cpuHeap.AllocateHeap(CpuHeapCreationDesc{ capacityInBytes, 0 });
-		m_allocator.Initialize(&m_cpuHeap);
+		REQUIRE(m_cpuHeap.AllocateHeap(CpuHeapCreationDesc{ capacityInBytes, 0, AllocatorType::MONOTONIC }));
+		REQUIRE(m_cpuHeap.GetAllocator() != nullptr);
+	}
+
+	// nullptr after m_cpuHeap.Release()
+	CpuHeapAllocator* GetAllocator() const
+	{
+		return m_cpuHeap.GetAllocator();
 	}
 
 	b8 IsInHeap(const void* pData) const

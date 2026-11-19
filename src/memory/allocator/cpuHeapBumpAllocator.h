@@ -3,17 +3,19 @@
 // Linear allocator over a CpuHeap, freed only by Reset()
 class CpuHeapBumpAllocator final : public CpuHeapAllocator
 {
+	friend class CpuHeap;	// the only one that initializes it
+
 public:
 	std::pmr::monotonic_buffer_resource m_monotonicResource;
 
 	CpuHeapBumpAllocator();
 	~CpuHeapBumpAllocator() override;
 	b8 Clear();
-	b8 Release();
+	b8 Release() override;
 
-	b8 Initialize(CpuHeap* pCpuHeap);
-	b8 Reset();		// invalidates every allocation, including pmr containers on GetMemoryResource()
+	b8 Reset() override;		// invalidates every allocation, including pmr containers on GetMemoryResource()
 	std::pmr::memory_resource* GetMemoryResource() override;
 private:
+	b8 Initialize(CpuHeap* pCpuHeap);
 	void RebuildResource(std::byte* pBuffer, const size_t sizeInBytes);
 };

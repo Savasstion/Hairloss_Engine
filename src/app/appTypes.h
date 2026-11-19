@@ -2,9 +2,8 @@
 
 struct AppState
 {
-	// Main app memory
+	// Main app memory, owns its allocator
 	CpuHeap m_appHeap;
-	CpuHeapBumpAllocator m_appAllocator;
 
 	// App objects
 	Window* m_pWindow = nullptr;

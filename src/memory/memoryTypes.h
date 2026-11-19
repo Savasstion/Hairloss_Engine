@@ -9,3 +9,4 @@ enum class AllocatorType
 
 // Forward declarations
 class CpuHeap;
+class CpuHeapAllocator;

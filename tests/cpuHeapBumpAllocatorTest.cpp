@@ -24,70 +24,77 @@ TEST_CASE("CpuHeapAllocator Is Abstract", "[memory]")
 	REQUIRE(std::is_abstract_v<CpuHeapAllocator>);
 }
 
-TEST_CASE("CpuHeapBumpAllocator Requires An Allocated Heap", "[memory]")
+TEST_CASE("CpuHeapBumpAllocator Is Unusable Without A Heap", "[memory]")
 {
+	// Only a CpuHeap can initialize it
 	CpuHeapBumpAllocator cpuHeapBumpAllocator;
-	CpuHeap cpuHeap;
 
 	REQUIRE(cpuHeapBumpAllocator.m_allocatorType == AllocatorType::MONOTONIC);
 	REQUIRE(cpuHeapBumpAllocator.NewObject<u64>() == nullptr);
-	REQUIRE_FALSE(cpuHeapBumpAllocator.Initialize(nullptr));
-	REQUIRE_FALSE(cpuHeapBumpAllocator.Initialize(&cpuHeap));
+	REQUIRE_FALSE(cpuHeapBumpAllocator.Reset());
+}
 
-	REQUIRE(cpuHeap.AllocateHeap(CpuHeapCreationDesc{ KB(64), 0 }));
-	REQUIRE(cpuHeapBumpAllocator.Initialize(&cpuHeap));
-	REQUIRE_FALSE(cpuHeapBumpAllocator.Initialize(&cpuHeap));
+TEST_CASE("CpuHeapAllocator Release Through The Base", "[memory]")
+{
+	TestCpuHeap testHeap(KB(64));
+	CpuHeapAllocator* pAllocator = testHeap.GetAllocator();
+
+	// Virtual, so the subclass drops its buffer and keeps its tag
+	REQUIRE(pAllocator->Release());
+	REQUIRE_FALSE(pAllocator->m_isInitialized);
+	REQUIRE(pAllocator->m_allocatorType == AllocatorType::MONOTONIC);
+	REQUIRE(pAllocator->NewObject<u64>() == nullptr);
 }
 
 TEST_CASE("CpuHeapBumpAllocator NewObject And DeleteObject", "[memory]")
 {
-	TestCpuHeap<CpuHeapBumpAllocator> testHeap(KB(64));
+	TestCpuHeap testHeap(KB(64));
 	constructedCount	= 0;
 	destructedCount		= 0;
 
-	CountedObject* pObject = testHeap.m_allocator.NewObject<CountedObject>(42ull);
+	CountedObject* pObject = testHeap.GetAllocator()->NewObject<CountedObject>(42ull);
 	REQUIRE(pObject != nullptr);
 	REQUIRE(pObject->m_value == 42);
 	REQUIRE(constructedCount == 1);
 	REQUIRE(testHeap.IsInHeap(pObject));
 
-	REQUIRE(testHeap.m_allocator.DeleteObject(pObject));
+	REQUIRE(testHeap.GetAllocator()->DeleteObject(pObject));
 	REQUIRE(pObject == nullptr);
 	REQUIRE(destructedCount == 1);
 
 	// Const objects can be deleted too
-	const CountedObject* pConstObject = testHeap.m_allocator.NewObject<CountedObject>(7ull);
-	REQUIRE(testHeap.m_allocator.DeleteObject(pConstObject));
+	const CountedObject* pConstObject = testHeap.GetAllocator()->NewObject<CountedObject>(7ull);
+	REQUIRE(testHeap.GetAllocator()->DeleteObject(pConstObject));
 	REQUIRE(pConstObject == nullptr);
 }
 
 TEST_CASE("CpuHeapBumpAllocator Honours Alignment", "[memory]")
 {
-	TestCpuHeap<CpuHeapBumpAllocator> testHeap(KB(64));
+	TestCpuHeap testHeap(KB(64));
 
-	testHeap.m_allocator.NewObject<u8>();
-	WideObject* pWide = testHeap.m_allocator.NewObject<WideObject>();
+	testHeap.GetAllocator()->NewObject<u8>();
+	WideObject* pWide = testHeap.GetAllocator()->NewObject<WideObject>();
 	REQUIRE(pWide != nullptr);
 	REQUIRE(reinterpret_cast<u64>(pWide) % 64 == 0);
 }
 
 TEST_CASE("CpuHeapBumpAllocator Reset Rewinds", "[memory]")
 {
-	TestCpuHeap<CpuHeapBumpAllocator> testHeap(KB(64));
+	TestCpuHeap testHeap(KB(64));
 
-	u64* pFirst = testHeap.m_allocator.NewObject<u64>(1ull);
-	testHeap.m_allocator.NewObject<u64>(2ull);
+	u64* pFirst = testHeap.GetAllocator()->NewObject<u64>(1ull);
+	testHeap.GetAllocator()->NewObject<u64>(2ull);
 
-	REQUIRE(testHeap.m_allocator.Reset());
-	u64* pAfterReset = testHeap.m_allocator.NewObject<u64>(3ull);
+	REQUIRE(testHeap.GetAllocator()->Reset());
+	u64* pAfterReset = testHeap.GetAllocator()->NewObject<u64>(3ull);
 	REQUIRE(pAfterReset == pFirst);
 }
 
 TEST_CASE("CpuHeapBumpAllocator Backs pmr Containers", "[memory]")
 {
-	TestCpuHeap<CpuHeapBumpAllocator> testHeap(KB(64));
+	TestCpuHeap testHeap(KB(64));
 
-	std::pmr::vector<u64> values(testHeap.m_allocator.GetMemoryResource());
+	std::pmr::vector<u64> values(testHeap.GetAllocator()->GetMemoryResource());
 	for (u64 index = 0; index < 100; ++index)
 	{
 		values.push_back(index * 3);
@@ -97,33 +104,29 @@ TEST_CASE("CpuHeapBumpAllocator Backs pmr Containers", "[memory]")
 	REQUIRE(testHeap.IsInHeap(values.data()));
 }
 
-TEST_CASE("CpuHeapBumpAllocator Refuses A Released Heap", "[memory]")
+TEST_CASE("CpuHeap Release Destroys Its Allocator", "[memory]")
 {
-	TestCpuHeap<CpuHeapBumpAllocator> testHeap(KB(64));
+	TestCpuHeap testHeap(KB(64));
 	destructedCount = 0;
 
-	CountedObject* pObject = testHeap.m_allocator.NewObject<CountedObject>(1ull);
+	CountedObject* pObject = testHeap.GetAllocator()->NewObject<CountedObject>(1ull);
+	REQUIRE(testHeap.GetAllocator()->DeleteObject(pObject));
+	REQUIRE(destructedCount == 1);
+
 	REQUIRE(testHeap.m_cpuHeap.Release());
-
-	REQUIRE(testHeap.m_allocator.NewObject<CountedObject>(2ull) == nullptr);
-	REQUIRE_FALSE(testHeap.m_allocator.Reset());
-
-	// The object's memory is gone, so it is not touched
-	REQUIRE_FALSE(testHeap.m_allocator.DeleteObject(pObject));
-	REQUIRE(pObject == nullptr);
-	REQUIRE(destructedCount == 0);
+	REQUIRE(testHeap.m_cpuHeap.GetAllocator() == nullptr);
 }
 
 TEST_CASE("CpuHeapBumpAllocator DeleteObject After Release Still Destroys", "[memory]")
 {
-	TestCpuHeap<CpuHeapBumpAllocator> testHeap(KB(64));
+	TestCpuHeap testHeap(KB(64));
 	destructedCount = 0;
 
-	CountedObject* pObject = testHeap.m_allocator.NewObject<CountedObject>(1ull);
-	REQUIRE(testHeap.m_allocator.Release());
+	CountedObject* pObject = testHeap.GetAllocator()->NewObject<CountedObject>(1ull);
+	REQUIRE(testHeap.GetAllocator()->Release());
 
 	// Heap memory is still there, so the destructor runs even though nothing is freed
-	REQUIRE_FALSE(testHeap.m_allocator.DeleteObject(pObject));
+	REQUIRE_FALSE(testHeap.GetAllocator()->DeleteObject(pObject));
 	REQUIRE(pObject == nullptr);
 	REQUIRE(destructedCount == 1);
 }

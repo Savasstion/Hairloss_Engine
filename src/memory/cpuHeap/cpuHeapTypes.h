@@ -3,5 +3,6 @@
 struct CpuHeapCreationDesc
 {
 	u64 m_capacityInBytes;
-	u64 m_alignmentInBytes;		// 0 = platform default
+	u64 m_alignmentInBytes;			// 0 = platform default
+	AllocatorType m_allocatorType;	// allocator the heap creates, MONOTONIC when zeroed
 };

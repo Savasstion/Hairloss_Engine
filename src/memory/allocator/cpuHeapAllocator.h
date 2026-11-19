@@ -14,17 +14,20 @@ public:
 	CpuHeapAllocator(const CpuHeapAllocator&) = delete;
 	CpuHeapAllocator& operator=(const CpuHeapAllocator&) = delete;
 	b8 Clear();
-	b8 Release();
+	virtual b8 Release();
 
 	// The subclass's concrete resource, for std::pmr containers
 	virtual std::pmr::memory_resource* GetMemoryResource() = 0;
 	std::pmr::polymorphic_allocator<std::byte> GetPolymorphicAllocator();
 
+	// Frees every allocation at once
+	virtual b8 Reset() = 0;
+
 	// Allocates and constructs a T, nullptr if not initialized
 	template<typename T, typename... Args>
 	T* NewObject(Args&&... args)
 	{
-		if (!CheckInitialized(__FUNCTION__) || !CheckHeapAllocated(__FUNCTION__))
+		if (!CheckInitialized(__FUNCTION__))
 		{
 			return nullptr;
 		}
@@ -53,14 +56,6 @@ public:
 			return false;
 		}
 
-		// Heap released: the object's memory is gone, don't touch it
-		if (!CheckHeapAllocated(__FUNCTION__))
-		{
-			pObject = nullptr;
-
-			return false;
-		}
-
 		GetPolymorphicAllocator().delete_object(const_cast<std::remove_cv_t<T>*>(pObject));
 		pObject = nullptr;
 
@@ -69,5 +64,4 @@ public:
 protected:
 	b8 BeginInitialize(CpuHeap* pCpuHeap);
 	b8 CheckInitialized(const char* pCallerName) const;		// logs when not initialized
-	b8 CheckHeapAllocated(const char* pCallerName) const;	// logs when the heap was released
 };

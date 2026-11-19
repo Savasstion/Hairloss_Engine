@@ -33,22 +33,9 @@ b8 CpuHeapBumpAllocator::Release()
 	return true;
 }
 
-b8 CpuHeapBumpAllocator::Initialize(CpuHeap* pCpuHeap)
-{
-	if (!BeginInitialize(pCpuHeap))
-	{
-		return false;
-	}
-
-	RebuildResource(pCpuHeap->GetBasePointer(), static_cast<size_t>(pCpuHeap->GetCapacity()));
-	m_isInitialized = true;
-
-	return true;
-}
-
 b8 CpuHeapBumpAllocator::Reset()
 {
-	if (!CheckInitialized(__FUNCTION__) || !CheckHeapAllocated(__FUNCTION__))
+	if (!CheckInitialized(__FUNCTION__))
 	{
 		return false;
 	}
@@ -62,6 +49,19 @@ b8 CpuHeapBumpAllocator::Reset()
 std::pmr::memory_resource* CpuHeapBumpAllocator::GetMemoryResource()
 {
 	return &m_monotonicResource;
+}
+
+b8 CpuHeapBumpAllocator::Initialize(CpuHeap* pCpuHeap)
+{
+	if (!BeginInitialize(pCpuHeap))
+	{
+		return false;
+	}
+
+	RebuildResource(pCpuHeap->GetBasePointer(), static_cast<size_t>(pCpuHeap->GetCapacity()));
+	m_isInitialized = true;
+
+	return true;
 }
 
 // Takes its buffer only at construction, so rebuild in place. nullptr = no buffer
