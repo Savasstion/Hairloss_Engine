@@ -41,7 +41,7 @@ SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
 	if (!pAppWindow)
 		return SDL_APP_FAILURE;
 
-	b8 isWindowCreated = pAppWindow->CreateAppWindow(windowDesc);
+	const b8 isWindowCreated = pAppWindow->CreateAppWindow(windowDesc);
 	if (!isWindowCreated)
 		return SDL_APP_FAILURE;
 
