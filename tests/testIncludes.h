@@ -7,15 +7,15 @@
 #include "../src/window/windowIncludes.h"
 
 // Test-owned heap and the allocator it creates
-// Example use: TestCpuHeap testHeap(KB(64)); testHeap.GetAllocator()->NewObject<Foo>();
+// Example use: TestCpuHeap testHeap(KB(64), AllocatorType::FREE_LIST); testHeap.GetAllocator()->NewObject<Foo>();
 struct TestCpuHeap
 {
 	CpuHeap m_cpuHeap;
 
 	// Fails the test at setup if the heap can't be allocated
-	TestCpuHeap(const u64 capacityInBytes)
+	TestCpuHeap(const u64 capacityInBytes, const AllocatorType allocatorType = AllocatorType::MONOTONIC)
 	{
-		REQUIRE(m_cpuHeap.AllocateHeap(CpuHeapCreationDesc{ capacityInBytes, 0, AllocatorType::MONOTONIC }));
+		REQUIRE(m_cpuHeap.AllocateHeap(CpuHeapCreationDesc{ capacityInBytes, 0, allocatorType }));
 		REQUIRE(m_cpuHeap.GetAllocator() != nullptr);
 	}
 

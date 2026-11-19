@@ -66,3 +66,12 @@ TEST_CASE("CpuHeap Rejects An Undefined Allocator", "[memory]")
 	REQUIRE(cpuHeap.AllocateHeap(CpuHeapCreationDesc{ KB(64), 0 }));
 	REQUIRE(cpuHeap.GetAllocator() != nullptr);
 }
+
+TEST_CASE("CpuHeap Creates A Free List Allocator", "[memory]")
+{
+	CpuHeap cpuHeap;
+
+	REQUIRE(cpuHeap.AllocateHeap(CpuHeapCreationDesc{ KB(64), 0, AllocatorType::FREE_LIST }));
+	REQUIRE(cpuHeap.GetAllocator() != nullptr);
+	REQUIRE(cpuHeap.GetAllocator()->m_allocatorType == AllocatorType::FREE_LIST);
+}

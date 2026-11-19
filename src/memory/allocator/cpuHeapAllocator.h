@@ -4,6 +4,8 @@
 // Example use: Window* pWindow = pAllocator->NewObject<Window>(pAllocator);
 class CpuHeapAllocator
 {
+	friend class CpuHeap;	// the only one that initializes allocators
+
 public:
 	CpuHeap* m_pCpuHeap;			// not owned
 	AllocatorType m_allocatorType;	// set by the subclass
@@ -62,6 +64,7 @@ public:
 		return true;
 	}
 protected:
+	virtual b8 Initialize(CpuHeap* pCpuHeap) = 0;			// builds the resource over the heap
 	b8 BeginInitialize(CpuHeap* pCpuHeap);
 	b8 CheckInitialized(const char* pCallerName) const;		// logs when not initialized
 };

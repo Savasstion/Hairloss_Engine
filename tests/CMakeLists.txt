@@ -6,10 +6,13 @@ add_executable(HairlossTest
 	../src/memory/cpuHeap/platform/win64/win64CpuHeapImpl.cpp
 	../src/memory/allocator/cpuHeapAllocator.cpp
 	../src/memory/allocator/cpuHeapBumpAllocator.cpp
+	../src/memory/allocator/cpuHeapFreeListAllocator.cpp
 	../src/memory/allocator/memoryResource/noGrowthMemoryResource.cpp
+	../src/memory/allocator/memoryResource/freeListMemoryResource.cpp
 	windowTest.cpp
 	cpuHeapTest.cpp
 	cpuHeapBumpAllocatorTest.cpp
+	cpuHeapFreeListAllocatorTest.cpp
 )
 
 #show these in Solution Explorer

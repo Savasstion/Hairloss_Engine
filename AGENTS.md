@@ -29,8 +29,9 @@ src/
 ├── logging/                 # Log / DebugLog family
 └── memory/                  # memoryTypes.h / memoryUtils.h / memoryIncludes.h
     ├── cpuHeap/             # CpuHeap (owns its allocator) + platform/win64/win64CpuHeapImpl (VirtualAlloc)
-    └── allocator/           # CpuHeapAllocator (abstract, pmr), CpuHeapBumpAllocator
-        └── memoryResource/  # NoGrowthMemoryResource (pmr upstream, aborts when the heap is full)
+    └── allocator/           # CpuHeapAllocator (abstract, pmr), CpuHeapBumpAllocator, CpuHeapFreeListAllocator
+        └── memoryResource/  # NoGrowthMemoryResource (pmr upstream, aborts when the heap is full),
+                             # FreeListMemoryResource (best fit), memoryResourceTypes.h
 ```
 
 ---
@@ -132,7 +133,10 @@ Called like a function → Utils. Names a value or a switch → Defines.
   5. Platform impl headers (inside platform guards, indented `#include`)
   6. `<module>.h`
   7. Sub-module Includes: `memoryIncludes.h` → `cpuHeap/cpuHeapIncludes.h` and `allocator/allocatorIncludes.h`;
-     `allocatorIncludes.h` → `memoryResource/memoryResourceIncludes.h`
+     `allocatorIncludes.h` → `memoryResource/memoryResourceIncludes.h` (see the exception below)
+- **Exception:** an Includes header may include a sub-module leaf early when one of its own leaves holds
+  that type by value. `allocatorIncludes.h` includes `memoryResource/freeListMemoryResource.h` right
+  before `cpuHeapFreeListAllocator.h`.
 
 ### 3.3 Global include hub: `platformConfigIncludes.h`
 It includes, in order:
@@ -145,7 +149,8 @@ It includes, in order:
 - Logging and memory come **before** OS/framework headers, so their headers can't use OS/framework types.
 - Circular includes are expected and resolved by `#pragma once`. Keep this order.
 - Headers can be read in a different order depending on which Includes header a `.cpp` starts from.
-  Forward-declare types where needed (see `memoryTypes.h`).
+  Forward-declare types where needed (see `memoryTypes.h`, e.g. `FreeListNode` for the early-read
+  `freeListMemoryResource.h`).
 - Templates in headers read before `logging.h` can't call the log functions. Put logging in a non-template
   helper defined in the `.cpp` (see `CpuHeapAllocator::CheckInitialized`).
 - OS/framework headers come in **only** through `platformConfig/platform/<tag>/`. **One exception:**
@@ -272,8 +277,8 @@ public:
 - No in-class initializers: `Clear()` sets members. Plain data structs (`AppState`) may use `= nullptr`.
 - Private helpers go last under `private:`, protected ones under `protected:`.
 - **No virtuals or inheritance for platforms.** The one exception is runtime strategy hierarchies:
-  abstract `CpuHeapAllocator` → `CpuHeapBumpAllocator`, via the pure virtuals `GetMemoryResource()` and
-  `Reset()`, plus a virtual `Release()`.
+  abstract `CpuHeapAllocator` → `CpuHeapBumpAllocator` / `CpuHeapFreeListAllocator`, via the pure
+  virtuals `GetMemoryResource()`, `Reset()` and protected `Initialize()`, plus a virtual `Release()`.
   - Overrides use `override`.
   - Constructors, destructors and `Release()` call their own class's `Clear()` explicitly
     (`CpuHeapBumpAllocator::Clear()`), because virtual dispatch doesn't reach the child there.
@@ -339,16 +344,25 @@ Both return `b8` (`true` on success).
   and initializes it over the memory. `UNDEFINED` fails and gives the memory back.
 - Allocate through `heap.GetAllocator()->NewObject<T>()`. `GetAllocator()` is `nullptr` before
   `AllocateHeap` and after `Release()`.
-- One allocator per heap. Subclass `Initialize` is private with `friend class CpuHeap;`, so only the
-  heap can initialize its allocator. Two allocators over one heap would hand out the same memory.
+- One allocator per heap. `Initialize` is a protected pure virtual and `CpuHeapAllocator` declares
+  `friend class CpuHeap;`, so only the heap initializes its allocator (subclasses keep their override
+  private). Two allocators over one heap would hand out the same memory.
+- **Choosing an allocator:**
+  - `MONOTONIC`: fastest. `DeleteObject` frees nothing until `Reset()`. For per-frame or load-once data.
+  - `FREE_LIST`: best fit. `DeleteObject` frees for reuse and merges free neighbours. Costs a 16-byte
+    header per allocation and O(free blocks) per allocate and free. For objects created and destroyed
+    in any order.
 - `CpuHeap` has no `NewObject` template, because `cpuHeap.h` can be read before the allocator headers.
-- `CpuHeapAllocator` is abstract and can't be instantiated. Pure virtuals: `GetMemoryResource()`, `Reset()`.
+- `CpuHeapAllocator` is abstract and can't be instantiated. Pure virtuals: `GetMemoryResource()`, `Reset()`,
+  `Initialize()`.
 - `Release()` is virtual, so it's safe through the `GetAllocator()` base pointer.
 - Each subclass sets its `AllocatorType` tag and owns its concrete pmr resource as a member
-  (`CpuHeapBumpAllocator`: `std::pmr::monotonic_buffer_resource`, `MONOTONIC`).
+  (`CpuHeapBumpAllocator`: `std::pmr::monotonic_buffer_resource`, `MONOTONIC`;
+  `CpuHeapFreeListAllocator`: our `FreeListMemoryResource`, `FREE_LIST`).
   - The resource is built over the heap's start and size in `Initialize(pCpuHeap)` and exposed by `GetMemoryResource()`.
-  - Resources take their buffer only at construction, so `Initialize` / `Reset` / `Release` rebuild them
+  - std resources take their buffer only at construction, so `Initialize` / `Reset` / `Release` rebuild them
     in place (`std::destroy_at` + `std::construct_at`). MSVC's `release()` doesn't rewind the initial buffer.
+    Our own resources (`FreeListMemoryResource`) have `Initialize` / `Reset` / `Release` instead.
 - Upstream is always `GetNoGrowthMemoryResource()`: an exhausted heap logs and aborts. It never grows
   onto the CRT heap and never throws.
 - `NewObject<T>` / `DeleteObject` wrap `polymorphic_allocator::new_object` / `delete_object`.
@@ -363,7 +377,7 @@ Both return `b8` (`true` on success).
     and every pointer into the heap dangles. Nothing checks or nulls them.
   - Before using a stored pointer, make sure its heap and allocator still outlive it.
 - **`Reset()` / `CpuHeap::Release()` with live objects is fine when everything is in that heap.**
-  - Both invalidate **every** allocation at once, without running destructors (pmr containers on
+  - For both allocators, these invalidate **every** allocation at once, without running destructors (pmr containers on
     `GetMemoryResource()` too).
   - Fine when every live object, its impl and everything they allocate came from that same heap,
     so it is all dropped together.
@@ -434,7 +448,7 @@ multiplied then truncated to `u64`. Never pass negative values (UB for floats, w
 ## 10. Tests
 - One `<module>Test.cpp` per module, each starting with `#include "testIncludes.h"`.
 - `testIncludes.h` includes Catch2 and the engine Includes, and provides `TestCpuHeap`:
-  a test-owned heap that `REQUIRE`s its own setup, `GetAllocator()` (forwards to the heap, `nullptr`
+  a test-owned heap (`TestCpuHeap(capacityInBytes, allocatorType = MONOTONIC)`) that `REQUIRE`s its own setup, `GetAllocator()` (forwards to the heap, `nullptr`
   after `Release()`), plus `IsInHeap()`.
 - `TEST_CASE("Readable Name", "[module]")`, Allman braces, `REQUIRE` on `b8` results.
 - Use abstraction classes, never impls. Fill framework desc fields inside `FW_` guards.

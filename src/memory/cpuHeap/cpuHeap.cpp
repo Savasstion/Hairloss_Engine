@@ -97,27 +97,19 @@ CpuHeapAllocator* CpuHeap::GetAllocator() const
 // Creates the allocator over this heap's memory
 b8 CpuHeap::CreateAllocator(const AllocatorType allocatorType)
 {
+	CpuHeapAllocator* pAllocator	= nullptr;
+	const char* pAllocatorName		= nullptr;
+
 	switch (allocatorType)
 	{
 	case AllocatorType::MONOTONIC:
-	{
-		CpuHeapBumpAllocator* pBumpAllocator = new CpuHeapBumpAllocator();
-		if (!pBumpAllocator->Initialize(this))
-		{
-			delete pBumpAllocator;
-
-			return false;
-		}
-
-		m_pAllocator = pBumpAllocator;
-
-		DebugLog(
-			"{}: Created CpuHeapBumpAllocator",
-			__FUNCTION__
-		);
-
-		return true;
-	}
+		pAllocator		= new CpuHeapBumpAllocator();
+		pAllocatorName	= "CpuHeapBumpAllocator";
+		break;
+	case AllocatorType::FREE_LIST:
+		pAllocator		= new CpuHeapFreeListAllocator();
+		pAllocatorName	= "CpuHeapFreeListAllocator";
+		break;
 	default:
 		DebugLogError(
 			"{}: Unsupported AllocatorType",
@@ -126,4 +118,21 @@ b8 CpuHeap::CreateAllocator(const AllocatorType allocatorType)
 
 		return false;
 	}
+
+	if (!pAllocator->Initialize(this))
+	{
+		delete pAllocator;
+
+		return false;
+	}
+
+	m_pAllocator = pAllocator;
+
+	DebugLog(
+		"{}: Created {}",
+		__FUNCTION__,
+		pAllocatorName
+	);
+
+	return true;
 }

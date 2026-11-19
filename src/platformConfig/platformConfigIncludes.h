@@ -9,6 +9,7 @@
 #include <format>
 #include <string_view>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <concepts>
 #include <type_traits>
