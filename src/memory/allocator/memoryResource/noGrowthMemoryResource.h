@@ -1,6 +1,6 @@
 #pragma once
 
-// pmr upstream that never grows: allocators can't leave their CpuHeap
+// pmr upstream that never grows. Allocators cannot use memory outside their CpuHeap.
 class NoGrowthMemoryResource : public std::pmr::memory_resource
 {
 private:
@@ -9,6 +9,6 @@ private:
 	bool do_is_equal(const std::pmr::memory_resource& other) const noexcept override;
 };
 
-// Shared stateless instance, like std::pmr::null_memory_resource()
+// Shared instance with no state, similar to std::pmr::null_memory_resource()
 // Example use: std::pmr::monotonic_buffer_resource resource(pBuffer, sizeInBytes, GetNoGrowthMemoryResource());
 std::pmr::memory_resource* GetNoGrowthMemoryResource();

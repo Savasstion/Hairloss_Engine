@@ -1,5 +1,5 @@
 #pragma once
 
-// Returns the singleton app state
+// Returns the single app state
 // Example use: AppState* pState = GetAppState();
 AppState* GetAppState();

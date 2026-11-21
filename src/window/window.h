@@ -1,7 +1,7 @@
 #pragma once
 
-// Platform-agnostic window, forwards to WindowImpl
-// m_pAllocator: not owned, must outlive the window
+// Platform-agnostic window. It sends all calls to WindowImpl.
+// m_pAllocator: not owned. It must stay alive longer than the window.
 // m_pWindowImpl: owned, allocated from m_pAllocator
 class Window
 {

@@ -14,7 +14,7 @@ TEST_CASE("CpuHeap Allocation", "[memory]")
 	REQUIRE(cpuHeap.GetBasePointer() != nullptr);
 	REQUIRE(cpuHeap.GetCapacity() == MB(1));
 
-	// Memory is writable end to end
+	// You can write to all of the memory
 	cpuHeap.GetBasePointer()[0]				= std::byte{ 0xAB };
 	cpuHeap.GetBasePointer()[MB(1) - 1]		= std::byte{ 0xCD };
 	REQUIRE(cpuHeap.GetBasePointer()[0] == std::byte{ 0xAB });
@@ -62,7 +62,7 @@ TEST_CASE("CpuHeap Rejects An Undefined Allocator", "[memory]")
 	REQUIRE_FALSE(cpuHeap.IsAllocated());
 	REQUIRE(cpuHeap.GetAllocator() == nullptr);
 
-	// Memory was given back, so a valid desc still works
+	// The memory was given back, and a valid desc still works
 	REQUIRE(cpuHeap.AllocateHeap(CpuHeapCreationDesc{ KB(64), 0 }));
 	REQUIRE(cpuHeap.GetAllocator() != nullptr);
 }

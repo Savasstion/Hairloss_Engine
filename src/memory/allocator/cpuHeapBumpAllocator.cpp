@@ -1,6 +1,6 @@
 #include "allocatorIncludes.h"
 
-// No buffer until Initialize, so early use aborts instead of using the CRT heap
+// No buffer until Initialize. An allocation before Initialize aborts and does not use the CRT heap.
 CpuHeapBumpAllocator::CpuHeapBumpAllocator()
 	: m_monotonicResource(GetNoGrowthMemoryResource())
 {
@@ -21,11 +21,11 @@ b8 CpuHeapBumpAllocator::Clear()
 	return true;
 }
 
-// Drops the heap buffer, then clears
-// Live objects are abandoned without destructor calls
+// Releases the heap buffer, then clears the allocator
+// Live objects stay in memory. Their destructors do not run.
 b8 CpuHeapBumpAllocator::Release()
 {
-	// Drop the heap buffer before the heap is freed
+	// Release the heap buffer before CpuHeap frees the memory
 	RebuildResource(nullptr, 0);
 
 	CpuHeapAllocator::Release();
@@ -35,8 +35,8 @@ b8 CpuHeapBumpAllocator::Release()
 	return true;
 }
 
-// Rewinds to the start of the heap
-// Every allocation is invalid afterwards, with no destructor calls, so use it for per-frame data
+// Moves back to the start of the heap
+// After this, all allocations are invalid and their destructors do not run. Use it for per-frame data.
 b8 CpuHeapBumpAllocator::Reset()
 {
 	if (!CheckInitialized(__FUNCTION__))
@@ -44,7 +44,7 @@ b8 CpuHeapBumpAllocator::Reset()
 		return false;
 	}
 
-	// release() may keep its place in the initial buffer, so rebuild to rewind
+	// release() can keep its position in the initial buffer. To move back to the start, make the resource again.
 	RebuildResource(m_pCpuHeap->GetBasePointer(), static_cast<size_t>(m_pCpuHeap->GetCapacity()));
 
 	return true;
@@ -55,7 +55,7 @@ std::pmr::memory_resource* CpuHeapBumpAllocator::GetMemoryResource()
 	return &m_monotonicResource;
 }
 
-// Builds the monotonic resource over the whole heap, only CpuHeap calls it
+// Makes the monotonic resource over the full heap. Only CpuHeap calls this function.
 b8 CpuHeapBumpAllocator::Initialize(CpuHeap* pCpuHeap)
 {
 	if (!BeginInitialize(pCpuHeap))
@@ -69,7 +69,7 @@ b8 CpuHeapBumpAllocator::Initialize(CpuHeap* pCpuHeap)
 	return true;
 }
 
-// Takes its buffer only at construction, so rebuild in place. nullptr = no buffer
+// The resource gets its buffer only at construction. For this reason, this function makes it again in place. nullptr = no buffer.
 void CpuHeapBumpAllocator::RebuildResource(std::byte* pBuffer, const size_t sizeInBytes)
 {
 	std::destroy_at(&m_monotonicResource);

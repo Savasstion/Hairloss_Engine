@@ -1,7 +1,7 @@
 #include "memoryResourceIncludes.h"
 
-// Upstream of every heap resource, only reached when the heap can't serve a request
-// Logs and aborts: the engine has no exceptions and must not grow onto the CRT heap
+// Upstream of each heap resource. It gets a request only if the heap cannot supply it.
+// Logs and aborts. The engine does not use exceptions and must not use the CRT heap.
 void* NoGrowthMemoryResource::do_allocate(size_t sizeInBytes, size_t)
 {
 	LogError(
@@ -12,7 +12,7 @@ void* NoGrowthMemoryResource::do_allocate(size_t sizeInBytes, size_t)
 	std::abort();
 }
 
-// Nothing to free, it never hands out memory
+// Does nothing. This resource never gives memory, and it has nothing to free.
 void NoGrowthMemoryResource::do_deallocate(void*, size_t, size_t)
 {
 }
@@ -22,7 +22,7 @@ bool NoGrowthMemoryResource::do_is_equal(const std::pmr::memory_resource& other)
 	return this == &other;
 }
 
-// One static, stateless instance shared by every resource
+// Returns one static instance with no state. All resources share it.
 std::pmr::memory_resource* GetNoGrowthMemoryResource()
 {
 	static NoGrowthMemoryResource noGrowthResource;

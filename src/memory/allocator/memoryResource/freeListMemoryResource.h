@@ -1,8 +1,8 @@
 #pragma once
 
-// Best-fit free list over a buffer, sorted by address so frees merge neighbours
+// Best-fit free list over a buffer. Because the list is in address order, a free merges the blocks next to it.
 // m_pBase: not owned
-// m_pUpstream: not owned, used when nothing fits, NoGrowth until Initialize so early use aborts
+// m_pUpstream: not owned. Used if no block fits. It is NoGrowth until Initialize, and an early allocation aborts.
 // Example use: freeListResource.Initialize(pBuffer, sizeInBytes, GetNoGrowthMemoryResource());
 class FreeListMemoryResource final : public std::pmr::memory_resource
 {

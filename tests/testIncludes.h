@@ -12,7 +12,7 @@ struct TestCpuHeap
 {
 	CpuHeap m_cpuHeap;
 
-	// Fails the test at setup if the heap can't be allocated
+	// Fails the test during setup if it cannot allocate the heap
 	TestCpuHeap(const u64 capacityInBytes, const AllocatorType allocatorType = AllocatorType::MONOTONIC)
 	{
 		REQUIRE(m_cpuHeap.AllocateHeap(CpuHeapCreationDesc{ capacityInBytes, 0, allocatorType }));

@@ -1,7 +1,7 @@
 #pragma once
 
 #if defined(FW_SDL3)
-// Matches SDL_main.h's C linkage
+// Uses the same C linkage as SDL_main.h
 extern "C"
 {
 	SDL_AppResult SDLCALL SDL_AppInit(void** ppAppState, int, char**);

@@ -1,6 +1,6 @@
 #include "memoryResourceIncludes.h"
 
-// A freed block must hold a FreeListNode, and every block holds at least a header
+// A freed block must hold a FreeListNode. Each block holds a header at minimum.
 static_assert(sizeof(FreeListAllocationHeader) >= sizeof(FreeListNode), "A freed block must fit a FreeListNode");
 
 FreeListMemoryResource::FreeListMemoryResource()
@@ -23,7 +23,7 @@ b8 FreeListMemoryResource::Clear()
 	return true;
 }
 
-// Forgets the buffer, its owner frees it
+// Removes the link to the buffer. The owner of the buffer frees it.
 b8 FreeListMemoryResource::Release()
 {
 	Clear();
@@ -31,9 +31,9 @@ b8 FreeListMemoryResource::Release()
 	return true;
 }
 
-// Takes over a buffer it doesn't own and makes it one free block
-// pBuffer must be aligned to alignof(FreeListNode) and hold at least one FreeListNode
-// pUpstream serves requests that don't fit (NoGrowth for heaps, which aborts)
+// Uses a buffer that it does not own and makes it one free block.
+// pBuffer must align to alignof(FreeListNode). It must hold one FreeListNode or more.
+// pUpstream gets the requests that do not fit. For heaps, it is NoGrowth, which aborts.
 b8 FreeListMemoryResource::Initialize(std::byte* pBuffer, const size_t sizeInBytes, std::pmr::memory_resource* pUpstream)
 {
 	if (!pBuffer || !pUpstream)
@@ -65,8 +65,8 @@ b8 FreeListMemoryResource::Initialize(std::byte* pBuffer, const size_t sizeInByt
 	return Reset();
 }
 
-// Makes the whole buffer one free block again
-// Every allocation is invalid afterwards, with no destructor calls
+// Makes the full buffer one free block again
+// After this, all allocations are invalid and their destructors do not run.
 b8 FreeListMemoryResource::Reset()
 {
 	if (!m_pBase)
@@ -84,7 +84,7 @@ b8 FreeListMemoryResource::Reset()
 	return true;
 }
 
-// Total free bytes, walks the list, for tests and debugging
+// Returns the total free bytes. It goes through the full list. Use it for tests and debug.
 size_t FreeListMemoryResource::GetFreeBytes() const
 {
 	size_t freeInBytes = 0;
@@ -96,7 +96,7 @@ size_t FreeListMemoryResource::GetFreeBytes() const
 	return freeInBytes;
 }
 
-// Number of free blocks, walks the list. 1 with nothing allocated means no fragmentation
+// Returns the number of free blocks. It goes through the full list. With no allocations, 1 means no fragmentation.
 size_t FreeListMemoryResource::GetFreeBlockCount() const
 {
 	size_t blockCount = 0;
@@ -108,12 +108,12 @@ size_t FreeListMemoryResource::GetFreeBlockCount() const
 	return blockCount;
 }
 
-// Best fit: the smallest free block that holds header, padding and data, O(free blocks)
-// Splits off the rest when it can hold a free node, otherwise hands out the whole block
-// Nothing fits: logs the free bytes and block count, then the upstream aborts
+// Best fit: finds the smallest free block that holds the header, the padding and the data. Cost: O(free blocks).
+// If the part that is left can hold a free node, it becomes a new free block. If not, the function gives the full block.
+// If no block fits, it logs the free bytes and the block count. Then the upstream aborts.
 void* FreeListMemoryResource::do_allocate(size_t sizeInBytes, size_t alignmentInBytes)
 {
-	// The header sits right before the data, so it needs the alignment too
+	// The header is immediately before the data. The header also needs its own alignment.
 	const size_t headerAlignmentInBytes	= alignof(FreeListAllocationHeader);
 	const size_t alignment				= alignmentInBytes > headerAlignmentInBytes ? alignmentInBytes : headerAlignmentInBytes;
 
@@ -122,7 +122,7 @@ void* FreeListMemoryResource::do_allocate(size_t sizeInBytes, size_t alignmentIn
 	size_t bestPaddingInBytes	= 0;
 	size_t bestRequiredInBytes	= 0;
 
-	// Larger than the whole buffer can't fit, and would overflow below
+	// A size larger than the full buffer cannot fit. It can also cause an overflow below.
 	if (sizeInBytes <= m_capacityInBytes)
 	{
 		FreeListNode* pPrev = nullptr;
@@ -145,7 +145,7 @@ void* FreeListMemoryResource::do_allocate(size_t sizeInBytes, size_t alignmentIn
 				bestPaddingInBytes	= paddingInBytes;
 				bestRequiredInBytes	= requiredInBytes;
 
-				// Exact fit can't be beaten
+				// No block can be better than an exact fit
 				if (pNode->m_sizeInBytes == requiredInBytes)
 				{
 					break;
@@ -167,12 +167,12 @@ void* FreeListMemoryResource::do_allocate(size_t sizeInBytes, size_t alignmentIn
 		return m_pUpstream->allocate(sizeInBytes, alignmentInBytes);
 	}
 
-	// Read the node before the header overwrites it
+	// Read the node before the header writes over it
 	FreeListNode* pNext				= pBest->m_pNext;
 	size_t blockSizeInBytes			= pBest->m_sizeInBytes;
 	const size_t remainderInBytes	= blockSizeInBytes - bestRequiredInBytes;
 
-	// Split off the rest if it can hold a free node
+	// Make the part that is left a new free block, if it can hold a free node
 	if (remainderInBytes >= sizeof(FreeListNode))
 	{
 		std::byte* pRemainder	= reinterpret_cast<std::byte*>(pBest) + bestRequiredInBytes;
@@ -198,9 +198,9 @@ void* FreeListMemoryResource::do_allocate(size_t sizeInBytes, size_t alignmentIn
 	return pUser;
 }
 
-// Inserts the block in address order and merges it with free neighbours, O(free blocks)
-// Size and alignment are ignored, the header holds what's needed
-// Foreign pointers, corrupt headers and blocks that are already free are logged and ignored (best effort)
+// Puts the block in address order and merges it with the free blocks next to it. Cost: O(free blocks).
+// The function ignores the size and the alignment. The header holds the necessary data.
+// It logs and ignores pointers from other resources, corrupt headers and blocks that are already free. This check is not complete.
 void FreeListMemoryResource::do_deallocate(void* pData, size_t, size_t)
 {
 	std::byte* pUser = static_cast<std::byte*>(pData);
@@ -214,7 +214,7 @@ void FreeListMemoryResource::do_deallocate(void* pData, size_t, size_t)
 		return;
 	}
 
-	// Copy the header out, the free node may overwrite it
+	// Copy the header first, because the free node can write over it
 	const FreeListAllocationHeader* pHeader	= reinterpret_cast<const FreeListAllocationHeader*>(pUser - sizeof(FreeListAllocationHeader));
 	const size_t paddingInBytes				= pHeader->m_paddingInBytes;
 	const size_t blockSizeInBytes			= pHeader->m_blockSizeInBytes;
@@ -242,7 +242,7 @@ void FreeListMemoryResource::do_deallocate(void* pData, size_t, size_t)
 		pNext = pNext->m_pNext;
 	}
 
-	// Overlapping a free block means it was already freed
+	// If the block overlaps a free block, the block was freed before
 	const b8 isOverlappingNext = pNext && pBlock + blockSizeInBytes > reinterpret_cast<std::byte*>(pNext);
 	const b8 isOverlappingPrev = pPrev && reinterpret_cast<std::byte*>(pPrev) + pPrev->m_sizeInBytes > pBlock;
 	if (isOverlappingNext || isOverlappingPrev)
@@ -264,7 +264,7 @@ void FreeListMemoryResource::do_deallocate(void* pData, size_t, size_t)
 		pFreed->m_pNext			= pNext->m_pNext;
 	}
 
-	// Link in, or merge with the previous block
+	// Link the block into the list, or merge it with the previous block
 	if (!pPrev)
 	{
 		m_pFreeListHead = pFreed;
@@ -280,7 +280,7 @@ void FreeListMemoryResource::do_deallocate(void* pData, size_t, size_t)
 	}
 }
 
-// Equal only to itself, so containers on different heaps never share memory
+// Equal only to itself. Containers on different heaps do not share memory.
 bool FreeListMemoryResource::do_is_equal(const std::pmr::memory_resource& other) const noexcept
 {
 	return this == &other;

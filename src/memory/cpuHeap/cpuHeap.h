@@ -3,7 +3,7 @@
 // Memory block that owns its one allocator
 // m_pCpuHeapImpl, m_pAllocator: owned, CRT allocated
 // GetAllocator(): nullptr until AllocateHeap succeeds, and after Release()
-// Release(): deletes the allocator before freeing the memory, pointers into the heap dangle
+// Release(): deletes the allocator, then frees the memory. After this, pointers into the heap are dangling pointers.
 class CpuHeap
 {
 public:

@@ -1,7 +1,7 @@
 #include "appIncludes.h"
 
-// The single app state, static so it lives for the whole program
-// Entry points take it from here instead of declaring their own
+// Returns the single app state. The state is static and stays alive until the program stops.
+// Entry points must get the state from this function. Do not declare a different state.
 AppState* GetAppState()
 {
 	static AppState appState;

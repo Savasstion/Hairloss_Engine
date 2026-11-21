@@ -1,8 +1,8 @@
 #include "windowIncludes.h"
 
-// Allocates the WindowImpl from pAllocator, no OS window yet, call CreateAppWindow()
-// pAllocator is kept, not owned, and must outlive the window
-// Without an allocator, logs and leaves the impl nullptr, so later calls fail cleanly
+// Allocates the WindowImpl from pAllocator. It does not create the OS window. To create it, call CreateAppWindow().
+// The window keeps pAllocator but does not own it. pAllocator must stay alive longer than the window.
+// Without an allocator, it logs and keeps the impl as nullptr. Then, later calls fail safely.
 Window::Window(CpuHeapAllocator* pAllocator)
 {
 	Clear();
@@ -34,8 +34,8 @@ b8 Window::Clear()
 	return true;
 }
 
-// Deletes the WindowImpl, whose destructor destroys the SDL window
-// Must run before the allocator's heap is released, the SDL window leaks otherwise
+// Deletes the WindowImpl. The WindowImpl destructor destroys the SDL window.
+// Call it before you release the heap of the allocator. If not, the SDL window leaks.
 b8 Window::Release()
 {
 	if (m_pAllocator)
@@ -49,7 +49,7 @@ b8 Window::Release()
 }
 
 // Creates the OS window from desc through the impl
-// Fails if the impl wasn't allocated or a window already exists
+// Fails if the impl is not allocated or if a window already exists.
 b8 Window::CreateAppWindow(const WindowCreationDesc& desc)
 {
 	if (!m_pWindowImpl)
@@ -65,8 +65,8 @@ b8 Window::CreateAppWindow(const WindowCreationDesc& desc)
 	return m_pWindowImpl->CreateAppWindow(desc);
 }
 
-// Type-erased framework window (SDL_Window* with SDL3), nullptr without one
-// Callers cast it back inside their own framework guard
+// Returns the type-erased framework window (SDL_Window* with SDL3). Returns nullptr if there is no window.
+// The caller casts it back to the framework type inside its framework guard.
 void* Window::GetNativeWindowHandle() const
 {
 	return m_pWindowImpl ? m_pWindowImpl->GetNativeWindowHandle() : nullptr;

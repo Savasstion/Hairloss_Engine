@@ -1,7 +1,7 @@
 #include "cpuHeapIncludes.h"
 
-// Creates the platform impl with CRT new, because the heap can't allocate itself
-// No memory yet, call AllocateHeap()
+// Creates the platform impl with CRT new, because the heap cannot allocate itself.
+// It allocates no memory. To allocate memory, call AllocateHeap().
 CpuHeap::CpuHeap()
 {
 	Clear();
@@ -23,13 +23,13 @@ b8 CpuHeap::Clear()
 }
 
 // Deletes the allocator, frees the memory, then deletes the impl
-// Objects still in the heap get no destructor call, so DeleteObject any that own outside resources first
-// Afterwards the heap can't be allocated again, and pointers into it or to its allocator dangle
+// The destructors of objects in the heap do not run. Before you call it, use DeleteObject on objects that own resources outside the heap.
+// After this, you cannot allocate the heap again. Pointers into the heap and to its allocator become dangling pointers.
 b8 CpuHeap::Release()
 {
 	b8 isReleased = true;
 
-	// Allocator first, so it drops its buffer before the memory is freed
+	// Allocator first, so that it releases its buffer before the impl frees the memory
 	if (m_pAllocator)
 	{
 		delete m_pAllocator;
@@ -51,9 +51,9 @@ b8 CpuHeap::Release()
 	return isReleased;
 }
 
-// Allocates the memory, then creates the allocator picked by desc.m_allocatorType
-// If the allocator can't be created, the memory is given back, so a later call can retry
-// Fails if already allocated or after Release()
+// Allocates the memory, then creates the allocator that desc.m_allocatorType selects.
+// If it cannot create the allocator, it gives the memory back. Then you can call it again.
+// Fails if the heap is already allocated or after Release().
 b8 CpuHeap::AllocateHeap(const CpuHeapCreationDesc& desc)
 {
 	if (!m_pCpuHeapImpl)
@@ -101,8 +101,8 @@ CpuHeapAllocator* CpuHeap::GetAllocator() const
 	return m_pAllocator;
 }
 
-// Creates (CRT new) and initializes the allocator for allocatorType over this heap's memory
-// On failure nothing is kept, and AllocateHeap gives the memory back
+// Creates (CRT new) and initializes the allocator for allocatorType over the memory of this heap.
+// If it fails, it keeps nothing, and AllocateHeap gives the memory back.
 b8 CpuHeap::CreateAllocator(const AllocatorType allocatorType)
 {
 	CpuHeapAllocator* pAllocator	= nullptr;

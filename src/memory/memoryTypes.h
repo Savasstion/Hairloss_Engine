@@ -1,6 +1,6 @@
 #pragma once
 
-// Picks the allocator a CpuHeap creates
+// Selects the allocator that a CpuHeap creates
 // MONOTONIC: freed only by Reset()
 // FREE_LIST: DeleteObject frees for reuse
 enum class AllocatorType

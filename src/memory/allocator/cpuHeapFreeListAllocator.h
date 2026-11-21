@@ -1,7 +1,7 @@
 #pragma once
 
-// Best-fit free list over a CpuHeap, DeleteObject frees for reuse
-// Reset(): invalidates every allocation, including pmr containers on GetMemoryResource()
+// Best-fit free list over a CpuHeap. DeleteObject frees memory for reuse.
+// Reset(): makes all allocations invalid. This also applies to pmr containers on GetMemoryResource().
 class CpuHeapFreeListAllocator final : public CpuHeapAllocator
 {
 public:

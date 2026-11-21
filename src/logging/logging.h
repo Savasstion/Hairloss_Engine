@@ -6,10 +6,10 @@
 template<typename... Args>
 void Log(std::format_string<Args...> fmtStr, Args&&... args)
 {
-	// Prefix every log message with the [LOG] tag
+	// Adds the [LOG] tag before the message
 	std::print("[LOG] ");
 
-	// Pass the format string and arguments straight to std::print
+	// Gives the format string and the arguments directly to std::print
 	std::println(fmtStr, std::forward<Args>(args)...);
 };
 
@@ -18,10 +18,10 @@ void Log(std::format_string<Args...> fmtStr, Args&&... args)
 template<typename... Args>
 void LogWarning(std::format_string<Args...> fmtStr, Args&&... args)
 {
-	// Prefix every warning message with the [WARNING] tag
+	// Adds the [WARNING] tag before the message
 	std::print("[WARNING] ");
 
-	// Pass the format string and arguments straight to std::print
+	// Gives the format string and the arguments directly to std::print
 	std::println(fmtStr, std::forward<Args>(args)...);
 };
 
@@ -30,53 +30,53 @@ void LogWarning(std::format_string<Args...> fmtStr, Args&&... args)
 template<typename... Args>
 void LogError(std::format_string<Args...> fmtStr, Args&&... args)
 {
-	// Prefix every warning message with the [ERROR] tag
+	// Adds the [ERROR] tag before the message
 	std::print("[ERROR] ");
 
-	// Pass the format string and arguments straight to std::print
+	// Gives the format string and the arguments directly to std::print
 	std::println(fmtStr, std::forward<Args>(args)...);
 };
 #pragma endregion	//	NORMAL_LOGGING
 
 #pragma region DEBUG_LOGGING
-// Compile-time safe logging only when in debug build mode
+// Compile-time safe logging, only in debug builds
 // Example use: DebugLog("Hello {}! Meaning of life is {}.", "World", 42);
 template<typename... Args>
 void DebugLog(std::format_string<Args...> fmtStr, Args&&... args)
 {
 #if defined(BUILD_DEBUG)
-	// Prefix every log message with the [DEBUG] and [LOG] tag
+	// Adds the [DEBUG] and [LOG] tags before the message
 	std::print("[DEBUG][LOG] ");
 
-	// Pass the format string and arguments straight to std::print
+	// Gives the format string and the arguments directly to std::print
 	std::println(fmtStr, std::forward<Args>(args)...);
 #endif
 };
 
-// Compile-time safe warning logging only when in debug build mode
+// Compile-time safe warning logging, only in debug builds
 // Example use: DebugLogWarning("{}! 2 + 2 != {}.", "Oh no", 3);
 template<typename... Args>
 void DebugLogWarning(std::format_string<Args...> fmtStr, Args&&... args)
 {
 #if defined(BUILD_DEBUG)
-	// Prefix every warning message with the [DEBUG] and [WARNING] tag
+	// Adds the [DEBUG] and [WARNING] tags before the message
 	std::print("[DEBUG][WARNING] ");
 
-	// Pass the format string and arguments straight to std::print
+	// Gives the format string and the arguments directly to std::print
 	std::println(fmtStr, std::forward<Args>(args)...);
 #endif
 };
 
-// Compile-time safe error logging only when in debug build mode
+// Compile-time safe error logging, only in debug builds
 // Example use: DebugLogError("{}! We divided by {}.", "OH NO", 0);
 template<typename... Args>
 void DebugLogError(std::format_string<Args...> fmtStr, Args&&... args)
 {
 #if defined(BUILD_DEBUG)
-	// Prefix every warning message with the [DEBUG] and [ERROR] tag
+	// Adds the [DEBUG] and [ERROR] tags before the message
 	std::print("[DEBUG][ERROR] ");
 
-	// Pass the format string and arguments straight to std::print
+	// Gives the format string and the arguments directly to std::print
 	std::println(fmtStr, std::forward<Args>(args)...);
 #endif
 };

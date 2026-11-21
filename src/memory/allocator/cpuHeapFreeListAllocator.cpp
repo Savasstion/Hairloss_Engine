@@ -19,11 +19,11 @@ b8 CpuHeapFreeListAllocator::Clear()
 	return true;
 }
 
-// Drops the heap buffer, then clears
-// Live objects are abandoned without destructor calls
+// Releases the heap buffer, then clears the allocator
+// Live objects stay in memory. Their destructors do not run.
 b8 CpuHeapFreeListAllocator::Release()
 {
-	// Drop the heap buffer before the heap is freed
+	// Release the heap buffer before CpuHeap frees the memory
 	m_freeListResource.Release();
 
 	CpuHeapAllocator::Release();
@@ -33,8 +33,8 @@ b8 CpuHeapFreeListAllocator::Release()
 	return true;
 }
 
-// Back to one free block over the whole heap
-// Every allocation is invalid afterwards, with no destructor calls
+// Makes the full heap one free block again
+// After this, all allocations are invalid and their destructors do not run.
 b8 CpuHeapFreeListAllocator::Reset()
 {
 	if (!CheckInitialized(__FUNCTION__))
@@ -50,8 +50,8 @@ std::pmr::memory_resource* CpuHeapFreeListAllocator::GetMemoryResource()
 	return &m_freeListResource;
 }
 
-// Builds the free list over the whole heap, only CpuHeap calls it
-// On failure the heap pointer is dropped again
+// Makes the free list over the full heap. Only CpuHeap calls this function.
+// If it fails, it sets the heap pointer to nullptr again.
 b8 CpuHeapFreeListAllocator::Initialize(CpuHeap* pCpuHeap)
 {
 	if (!BeginInitialize(pCpuHeap))

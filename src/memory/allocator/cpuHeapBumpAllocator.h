@@ -1,7 +1,7 @@
 #pragma once
 
 // Linear allocator over a CpuHeap, freed only by Reset()
-// Reset(): invalidates every allocation, including pmr containers on GetMemoryResource()
+// Reset(): makes all allocations invalid. This also applies to pmr containers on GetMemoryResource().
 class CpuHeapBumpAllocator final : public CpuHeapAllocator
 {
 public:

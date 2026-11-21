@@ -2,7 +2,7 @@
 
 struct AppState
 {
-	// Main app memory, flexible allocation for more permanent app-related objects like systems
+	// Main app memory. Use it for objects that stay alive for a long time, for example systems.
 	CpuHeap m_appHeap;
 
 	// App objects

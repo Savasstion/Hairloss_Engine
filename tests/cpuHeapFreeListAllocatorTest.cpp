@@ -18,7 +18,7 @@ namespace
 		u8 m_bytes[64];
 	};
 
-	// The heap's free list resource
+	// Returns the free list resource of the heap
 	// Example use: GetFreeList(testHeap).GetFreeBlockCount();
 	FreeListMemoryResource& GetFreeList(const TestCpuHeap& testHeap)
 	{
@@ -51,7 +51,7 @@ TEST_CASE("CpuHeapFreeListAllocator NewObject And DeleteObject", "[memory]")
 	REQUIRE(pObject == nullptr);
 	REQUIRE(destructedCount == 1);
 
-	// Const objects can be deleted too
+	// You can also delete const objects
 	const CountedObject* pConstObject = testHeap.GetAllocator()->NewObject<CountedObject>(7ull);
 	REQUIRE(testHeap.GetAllocator()->DeleteObject(pConstObject));
 	REQUIRE(pConstObject == nullptr);
@@ -79,12 +79,12 @@ TEST_CASE("CpuHeapFreeListAllocator Picks The Best Fit", "[memory]")
 	void* pC = pResource->allocate(128, 8);
 	void* pD = pResource->allocate(64, 8);
 
-	// Holes of 272 (A) and 144 (C) bytes, split by live blocks, plus the tail
+	// Free blocks of 272 (A) and 144 (C) bytes, with live blocks between them, and the tail
 	pResource->deallocate(pA, 256, 8);
 	pResource->deallocate(pC, 128, 8);
 	REQUIRE(GetFreeList(testHeap).GetFreeBlockCount() == 3);
 
-	// Needs 120: first fit would take A, best fit takes C
+	// Needs 120 bytes. First fit takes A, but best fit takes C.
 	void* pFit = pResource->allocate(100, 8);
 	REQUIRE(pFit == pC);
 
@@ -103,7 +103,7 @@ TEST_CASE("CpuHeapFreeListAllocator Merges Free Neighbours", "[memory]")
 	u64* pThird		= pAllocator->NewObject<u64>(3ull);
 	u64* pFourth	= pAllocator->NewObject<u64>(4ull);
 
-	// Out of order, so merges happen with the next, the previous and both
+	// Not in order, to merge with the next block, the previous block and both
 	REQUIRE(pAllocator->DeleteObject(pSecond));
 	REQUIRE(pAllocator->DeleteObject(pFourth));
 	REQUIRE(pAllocator->DeleteObject(pFirst));
@@ -123,7 +123,7 @@ TEST_CASE("CpuHeapFreeListAllocator Honours Alignment", "[memory]")
 	REQUIRE(pWide != nullptr);
 	REQUIRE(reinterpret_cast<u64>(pWide) % 64 == 0);
 
-	// Still aligned when it reuses a freed block
+	// The object stays aligned when it uses a freed block again
 	REQUIRE(pAllocator->DeleteObject(pWide));
 	pWide = pAllocator->NewObject<WideObject>();
 	REQUIRE(reinterpret_cast<u64>(pWide) % 64 == 0);
@@ -144,7 +144,7 @@ TEST_CASE("CpuHeapFreeListAllocator Backs pmr Containers", "[memory]")
 		REQUIRE(testHeap.IsInHeap(values.data()));
 	}
 
-	// Growth freed every old buffer, and destruction the last one
+	// Each growth freed the old buffer, and the destructor freed the last buffer
 	REQUIRE(GetFreeList(testHeap).GetFreeBlockCount() == 1);
 	REQUIRE(GetFreeList(testHeap).GetFreeBytes() == KB(64));
 }
@@ -166,7 +166,7 @@ TEST_CASE("CpuHeapFreeListAllocator Ignores Foreign Pointers", "[memory]")
 	TestCpuHeap testHeap(KB(64), AllocatorType::FREE_LIST);
 	u64 notInHeap = 0;
 
-	// Logs and leaves the free list alone
+	// Logs and does not change the free list
 	testHeap.GetAllocator()->GetMemoryResource()->deallocate(&notInHeap, sizeof(u64), alignof(u64));
 	REQUIRE(GetFreeList(testHeap).GetFreeBlockCount() == 1);
 	REQUIRE(GetFreeList(testHeap).GetFreeBytes() == KB(64));

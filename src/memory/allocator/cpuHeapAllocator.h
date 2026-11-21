@@ -1,10 +1,10 @@
 #pragma once
 
-// Abstract base: each subclass owns a concrete pmr resource over a CpuHeap
+// Abstract base class. Each subclass owns a concrete pmr resource over a CpuHeap.
 // m_pCpuHeap: not owned
 // m_allocatorType: set by the subclass
-// Initialize(): only CpuHeap calls it, through the friend
-// CheckInitialized(): logs when not initialized
+// Initialize(): only CpuHeap calls it, through the friend declaration
+// CheckInitialized(): logs if the allocator is not initialized
 // Example use: Window* pWindow = pAllocator->NewObject<Window>(pAllocator);
 class CpuHeapAllocator
 {
@@ -22,14 +22,14 @@ public:
 	b8 Clear();
 	virtual b8 Release();
 
-	// The subclass's concrete resource, for std::pmr containers
+	// The concrete resource of the subclass, for std::pmr containers
 	virtual std::pmr::memory_resource* GetMemoryResource() = 0;
 	std::pmr::polymorphic_allocator<std::byte> GetPolymorphicAllocator();
 
-	// Frees every allocation at once
+	// Frees all allocations at the same time
 	virtual b8 Reset() = 0;
 
-	// Allocates and constructs a T, nullptr if not initialized
+	// Allocates and constructs a T. Returns nullptr if the allocator is not initialized.
 	template<typename T, typename... Args>
 	T* NewObject(Args&&... args)
 	{
@@ -41,11 +41,11 @@ public:
 		return GetPolymorphicAllocator().template new_object<T>(std::forward<Args>(args)...);
 	}
 
-	// Destroys, frees and nulls the pointer. Use the type it was created as
+	// Destroys the object, frees its memory and sets the pointer to nullptr. Use the same type as in NewObject.
 	template<typename T>
 	b8 DeleteObject(T*& pObject)
 	{
-		// A base pointer would free the wrong address and size
+		// A base pointer frees the wrong address and size
 		static_assert(!std::is_polymorphic_v<T> || std::is_final_v<T>, "DeleteObject needs the exact type, mark polymorphic classes final");
 
 		if (!pObject)
@@ -53,7 +53,7 @@ public:
 			return true;
 		}
 
-		// Allocator released but heap memory still there: destroy, can't free
+		// The allocator is released, but the heap memory is still there: destroy the object, but do not free it
 		if (!CheckInitialized(__FUNCTION__))
 		{
 			pObject->~T();

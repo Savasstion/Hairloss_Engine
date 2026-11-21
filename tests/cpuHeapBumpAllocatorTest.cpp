@@ -39,7 +39,7 @@ TEST_CASE("CpuHeapAllocator Release Through The Base", "[memory]")
 	TestCpuHeap testHeap(KB(64));
 	CpuHeapAllocator* pAllocator = testHeap.GetAllocator();
 
-	// Virtual, so the subclass drops its buffer and keeps its tag
+	// Release is virtual. The subclass releases its buffer and keeps its tag.
 	REQUIRE(pAllocator->Release());
 	REQUIRE_FALSE(pAllocator->m_isInitialized);
 	REQUIRE(pAllocator->m_allocatorType == AllocatorType::MONOTONIC);
@@ -62,7 +62,7 @@ TEST_CASE("CpuHeapBumpAllocator NewObject And DeleteObject", "[memory]")
 	REQUIRE(pObject == nullptr);
 	REQUIRE(destructedCount == 1);
 
-	// Const objects can be deleted too
+	// You can also delete const objects
 	const CountedObject* pConstObject = testHeap.GetAllocator()->NewObject<CountedObject>(7ull);
 	REQUIRE(testHeap.GetAllocator()->DeleteObject(pConstObject));
 	REQUIRE(pConstObject == nullptr);
@@ -125,7 +125,7 @@ TEST_CASE("CpuHeapBumpAllocator DeleteObject After Release Still Destroys", "[me
 	CountedObject* pObject = testHeap.GetAllocator()->NewObject<CountedObject>(1ull);
 	REQUIRE(testHeap.GetAllocator()->Release());
 
-	// Heap memory is still there, so the destructor runs even though nothing is freed
+	// The heap memory is still there. The destructor runs, but the allocator frees nothing.
 	REQUIRE_FALSE(testHeap.GetAllocator()->DeleteObject(pObject));
 	REQUIRE(pObject == nullptr);
 	REQUIRE(destructedCount == 1);
