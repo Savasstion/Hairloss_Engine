@@ -8,8 +8,9 @@ struct FreeListNode
 };
 
 // Just before every pointer a FreeListMemoryResource returns
+// Read back by deallocate to rebuild the block
 struct FreeListAllocationHeader
 {
-	size_t m_blockSizeInBytes;	// whole block, for deallocate
+	size_t m_blockSizeInBytes;	// whole block
 	size_t m_paddingInBytes;	// block start to returned pointer
 };

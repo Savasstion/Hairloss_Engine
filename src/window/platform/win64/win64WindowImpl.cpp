@@ -39,6 +39,7 @@ b8 WindowImpl::Clear()
 	return true;
 }
 
+// Destroys the SDL window if there is one, then clears
 b8 WindowImpl::Release()
 {
 #if defined(FW_SDL3)
@@ -58,6 +59,8 @@ b8 WindowImpl::Release()
 	return true;
 }
 
+// Creates the SDL window, its memory is owned by SDL
+// Fails without changing anything if a window already exists
 b8 WindowImpl::CreateAppWindow(const WindowCreationDesc& desc)
 {
 #if defined(FW_SDL3)
@@ -97,6 +100,7 @@ b8 WindowImpl::CreateAppWindow(const WindowCreationDesc& desc)
 	return true;
 }
 
+// The SDL_Window* with SDL3, nullptr without a framework
 void* WindowImpl::GetNativeWindowHandle() const
 {
 #if defined(FW_SDL3)

@@ -21,6 +21,8 @@ b8 CpuHeapImpl::Clear()
 	return true;
 }
 
+// Returns the memory to the OS with VirtualFree, then clears
+// Returns false if VirtualFree fails, the state is cleared either way
 b8 CpuHeapImpl::Release()
 {
 	b8 isReleased = true;
@@ -51,6 +53,10 @@ b8 CpuHeapImpl::Release()
 	return isReleased;
 }
 
+// Reserves and commits desc.m_capacityInBytes with VirtualAlloc
+// The base is always aligned to the allocation granularity (64 KB), so m_alignmentInBytes is only validated:
+// 0 means the granularity, otherwise it must be a power of two no larger than it
+// Fails if already allocated or the capacity is 0
 b8 CpuHeapImpl::AllocateHeap(const CpuHeapCreationDesc& desc)
 {
 	if (m_isAllocated)

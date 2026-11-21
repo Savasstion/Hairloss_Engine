@@ -18,7 +18,7 @@ b8 FreeListMemoryResource::Clear()
 	m_pBase				= nullptr;
 	m_capacityInBytes	= 0;
 	m_pFreeListHead		= nullptr;
-	m_pUpstream			= GetNoGrowthMemoryResource();	// early use aborts instead of using the CRT heap
+	m_pUpstream			= GetNoGrowthMemoryResource();
 
 	return true;
 }
@@ -31,6 +31,9 @@ b8 FreeListMemoryResource::Release()
 	return true;
 }
 
+// Takes over a buffer it doesn't own and makes it one free block
+// pBuffer must be aligned to alignof(FreeListNode) and hold at least one FreeListNode
+// pUpstream serves requests that don't fit (NoGrowth for heaps, which aborts)
 b8 FreeListMemoryResource::Initialize(std::byte* pBuffer, const size_t sizeInBytes, std::pmr::memory_resource* pUpstream)
 {
 	if (!pBuffer || !pUpstream)
@@ -62,6 +65,8 @@ b8 FreeListMemoryResource::Initialize(std::byte* pBuffer, const size_t sizeInByt
 	return Reset();
 }
 
+// Makes the whole buffer one free block again
+// Every allocation is invalid afterwards, with no destructor calls
 b8 FreeListMemoryResource::Reset()
 {
 	if (!m_pBase)
@@ -79,6 +84,7 @@ b8 FreeListMemoryResource::Reset()
 	return true;
 }
 
+// Total free bytes, walks the list, for tests and debugging
 size_t FreeListMemoryResource::GetFreeBytes() const
 {
 	size_t freeInBytes = 0;
@@ -90,6 +96,7 @@ size_t FreeListMemoryResource::GetFreeBytes() const
 	return freeInBytes;
 }
 
+// Number of free blocks, walks the list. 1 with nothing allocated means no fragmentation
 size_t FreeListMemoryResource::GetFreeBlockCount() const
 {
 	size_t blockCount = 0;
@@ -101,7 +108,9 @@ size_t FreeListMemoryResource::GetFreeBlockCount() const
 	return blockCount;
 }
 
-// Best fit: the smallest free block that holds header, padding and data
+// Best fit: the smallest free block that holds header, padding and data, O(free blocks)
+// Splits off the rest when it can hold a free node, otherwise hands out the whole block
+// Nothing fits: logs the free bytes and block count, then the upstream aborts
 void* FreeListMemoryResource::do_allocate(size_t sizeInBytes, size_t alignmentInBytes)
 {
 	// The header sits right before the data, so it needs the alignment too
@@ -189,7 +198,9 @@ void* FreeListMemoryResource::do_allocate(size_t sizeInBytes, size_t alignmentIn
 	return pUser;
 }
 
-// Inserts the block in address order and merges it with free neighbours
+// Inserts the block in address order and merges it with free neighbours, O(free blocks)
+// Size and alignment are ignored, the header holds what's needed
+// Foreign pointers, corrupt headers and blocks that are already free are logged and ignored (best effort)
 void FreeListMemoryResource::do_deallocate(void* pData, size_t, size_t)
 {
 	std::byte* pUser = static_cast<std::byte*>(pData);
@@ -269,6 +280,7 @@ void FreeListMemoryResource::do_deallocate(void* pData, size_t, size_t)
 	}
 }
 
+// Equal only to itself, so containers on different heaps never share memory
 bool FreeListMemoryResource::do_is_equal(const std::pmr::memory_resource& other) const noexcept
 {
 	return this == &other;

@@ -1,14 +1,18 @@
 #pragma once
 
 // Abstract base: each subclass owns a concrete pmr resource over a CpuHeap
+// m_pCpuHeap: not owned
+// m_allocatorType: set by the subclass
+// Initialize(): only CpuHeap calls it, through the friend
+// CheckInitialized(): logs when not initialized
 // Example use: Window* pWindow = pAllocator->NewObject<Window>(pAllocator);
 class CpuHeapAllocator
 {
-	friend class CpuHeap;	// the only one that initializes allocators
+	friend class CpuHeap;
 
 public:
-	CpuHeap* m_pCpuHeap;			// not owned
-	AllocatorType m_allocatorType;	// set by the subclass
+	CpuHeap* m_pCpuHeap;
+	AllocatorType m_allocatorType;
 	b8 m_isInitialized;
 
 	CpuHeapAllocator();
@@ -66,5 +70,5 @@ public:
 protected:
 	virtual b8 Initialize(CpuHeap* pCpuHeap) = 0;			// builds the resource over the heap
 	b8 BeginInitialize(CpuHeap* pCpuHeap);
-	b8 CheckInitialized(const char* pCallerName) const;		// logs when not initialized
+	b8 CheckInitialized(const char* pCallerName) const;
 };

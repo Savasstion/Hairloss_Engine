@@ -1,12 +1,14 @@
 #pragma once
 
-class WindowImpl 
+// win64 window impl
+// m_pWindow: owned by SDL, destroyed in Release()
+class WindowImpl
 {
 public:
 	u32 m_width;
 	u32 m_height;
 #if defined(FW_SDL3)
-	SDL_Window* m_pWindow;		// owned by SDL
+	SDL_Window* m_pWindow;
 	SDL_WindowFlags m_flags;
 #endif	// FW_SDL3
 

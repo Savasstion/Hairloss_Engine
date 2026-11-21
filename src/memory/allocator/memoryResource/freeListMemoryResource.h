@@ -1,14 +1,16 @@
 #pragma once
 
-// Best-fit free list over a buffer it doesn't own, sorted by address so frees merge neighbours
+// Best-fit free list over a buffer, sorted by address so frees merge neighbours
+// m_pBase: not owned
+// m_pUpstream: not owned, used when nothing fits, NoGrowth until Initialize so early use aborts
 // Example use: freeListResource.Initialize(pBuffer, sizeInBytes, GetNoGrowthMemoryResource());
 class FreeListMemoryResource final : public std::pmr::memory_resource
 {
 public:
-	std::byte* m_pBase;							// not owned
+	std::byte* m_pBase;
 	size_t m_capacityInBytes;
 	FreeListNode* m_pFreeListHead;				// lowest address first
-	std::pmr::memory_resource* m_pUpstream;	// not owned, used when nothing fits
+	std::pmr::memory_resource* m_pUpstream;	// fallback resource
 
 	FreeListMemoryResource();
 	~FreeListMemoryResource() override;

@@ -21,6 +21,8 @@ b8 CpuHeapBumpAllocator::Clear()
 	return true;
 }
 
+// Drops the heap buffer, then clears
+// Live objects are abandoned without destructor calls
 b8 CpuHeapBumpAllocator::Release()
 {
 	// Drop the heap buffer before the heap is freed
@@ -33,6 +35,8 @@ b8 CpuHeapBumpAllocator::Release()
 	return true;
 }
 
+// Rewinds to the start of the heap
+// Every allocation is invalid afterwards, with no destructor calls, so use it for per-frame data
 b8 CpuHeapBumpAllocator::Reset()
 {
 	if (!CheckInitialized(__FUNCTION__))
@@ -51,6 +55,7 @@ std::pmr::memory_resource* CpuHeapBumpAllocator::GetMemoryResource()
 	return &m_monotonicResource;
 }
 
+// Builds the monotonic resource over the whole heap, only CpuHeap calls it
 b8 CpuHeapBumpAllocator::Initialize(CpuHeap* pCpuHeap)
 {
 	if (!BeginInitialize(pCpuHeap))

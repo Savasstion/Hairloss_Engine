@@ -1,10 +1,12 @@
 #pragma once
 
 // Picks the allocator a CpuHeap creates
+// MONOTONIC: freed only by Reset()
+// FREE_LIST: DeleteObject frees for reuse
 enum class AllocatorType
 {
-	MONOTONIC,		// monotonic_buffer_resource, freed only by Reset()
-	FREE_LIST,		// best-fit free list, DeleteObject frees for reuse
+	MONOTONIC,		// monotonic_buffer_resource
+	FREE_LIST,		// best-fit free list
 	UNDEFINED
 };
 

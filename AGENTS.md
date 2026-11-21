@@ -170,6 +170,7 @@ It includes, in order:
 
 ## 4. Formatting
 
+### 4.1 Layout
 - **Tabs** for indentation. Spaces only for alignment after code.
 - **LF** line endings (`.gitattributes`). CRLF only for `.bat`, `.cmd`, `.ps1`, `.sln`, `.vcxproj`.
 - `.editorconfig` sets indentation, UTF-8 without BOM, the final newline and trailing whitespace.
@@ -184,6 +185,8 @@ It includes, in order:
   m_capacity		= 0;
   m_isAllocated	= false;
   ```
+
+### 4.2 Log calls and descs
 - **Log calls:** one argument per line:
   ```cpp
   DebugLogError(
@@ -201,16 +204,50 @@ It includes, in order:
   	defaultWindowFlags
   };
   ```
-- **Preprocessor:**
-  - Indent directives inside `#if` blocks with a tab. In function bodies, `#if`/`#endif` sit at column 0.
-  - Every non-trivial `#endif` names its condition: `#endif	// FW_SDL3`, `#endif	// OS_WINDOWS && HW_X64`.
-  - Regions: `#pragma region UPPER_SNAKE_CASE` ... `#pragma endregion	// UPPER_SNAKE_CASE`.
-- **Comments:**
-  - `//` only. **Short, simple, clear:** one line, a few words (`// Window creation`, `// not owned`).
-  - Say *what*. Add *why* only when it isn't obvious, briefly. No multi-line explanations.
-  - Helpers and templates get a one-line description plus `// Example use: ...`.
-  - **Never mention AGENTS.md, docs or section numbers in code.** Rules live here.
+
+### 4.3 Preprocessor
+- Indent directives inside `#if` blocks with a tab. In function bodies, `#if`/`#endif` sit at column 0.
+- Every non-trivial `#endif` names its condition: `#endif	// FW_SDL3`, `#endif	// OS_WINDOWS && HW_X64`.
+- Regions: `#pragma region UPPER_SNAKE_CASE` ... `#pragma endregion	// UPPER_SNAKE_CASE`.
+
+### 4.4 Comments
+**General**
+- `//` only. **Short, simple, clear:** one line, a few words (`// Window creation`, `// Heap allocation`).
+- Say *what*. Add *why* only when it isn't obvious, briefly.
+- No multi-line explanations, except header and function comments (below).
+- **Never mention AGENTS.md, docs or section numbers in code.** Rules live here.
 - **TODOs:** `// TODO : <description>` (space before the colon). Keep them until implemented.
+
+**Trailing comments** (beside member variables, enum values, declarations, parameters)
+- Only describe what the thing is, in a few words: `// whole block`, `// block start to returned pointer`.
+- No ownership, lifetime, usage, behavior, defaults, conditions or caveats
+  (not `// not owned`, `// CRT allocated`, `// nullptr until AllocateHeap succeeds`). Those go in a header comment.
+
+**Header comments** (right above a class / struct / enum declaration, or at the top of a file after `#pragma once`)
+- Hold memory ownership, lifetimes, usage, behavior, defaults, conditions and caveats.
+- First line: a one-line description. Then one short line per note, prefixed with the member,
+  method or value it's about.
+- Keep each line short and factual. List only what isn't obvious from names and types.
+```cpp
+// Best-fit free list over a CpuHeap
+// m_pCpuHeap: not owned
+// Reset(): invalidates every allocation, including pmr containers on GetMemoryResource()
+class CpuHeapFreeListAllocator final : public CpuHeapAllocator
+```
+
+**Function comments** (in the `.cpp`, right above a function's definition, no blank line before the signature)
+- Describe its purpose, usage, caveats and any other important details.
+- One line or several, as long as the function needs. Still `//` lines, short and factual, with no filler.
+- Optional: skip them when the name and signature already say it all (`GetCapacity()`).
+- Header declarations stay bare. Notes about a class as a whole go in its header comment.
+```cpp
+// Best fit: the smallest free block that holds header, padding and data
+// Splits off the rest when it can hold a free node, otherwise hands out the whole block
+// Nothing fits: logs, then the upstream aborts
+void* FreeListMemoryResource::do_allocate(size_t sizeInBytes, size_t alignmentInBytes)
+```
+
+**Helpers and templates** get a one-line description plus `// Example use: ...`.
 
 ---
 
@@ -259,7 +296,7 @@ public:
 	u32 m_width;
 	u32 m_height;
 #if defined(FW_SDL3)
-	SDL_Window* m_pWindow;		// owned by SDL
+	SDL_Window* m_pWindow;
 	SDL_WindowFlags m_flags;
 #endif	// FW_SDL3
 
@@ -333,57 +370,11 @@ Both return `b8` (`true` on success).
 - Use raw pointers. The owner frees them in `Release()`:
   ```cpp
   m_pWindowImpl = m_pAllocator->NewObject<WindowImpl>();	// constructor
-  m_pAllocator->DeleteObject(m_pWindowImpl);				// Release(), nulls the pointer
+  m_pAllocator->DeleteObject(m_pWindowImpl);				// Release()
   ```
 - **Pass the allocator in.** There's no global memory system. A class that allocates takes a
   `CpuHeapAllocator*` (constructor or desc) and keeps it as a non-owning `m_pAllocator`, which must
   outlive its allocations.
-
-**`CpuHeap` owns the memory and its one allocator. The allocator hands it out through `std::pmr`.**
-- `AllocateHeap` creates the allocator picked by `CpuHeapCreationDesc::m_allocatorType` (zeroed = `MONOTONIC`)
-  and initializes it over the memory. `UNDEFINED` fails and gives the memory back.
-- Allocate through `heap.GetAllocator()->NewObject<T>()`. `GetAllocator()` is `nullptr` before
-  `AllocateHeap` and after `Release()`.
-- One allocator per heap. `Initialize` is a protected pure virtual and `CpuHeapAllocator` declares
-  `friend class CpuHeap;`, so only the heap initializes its allocator (subclasses keep their override
-  private). Two allocators over one heap would hand out the same memory.
-- **Choosing an allocator:**
-  - `MONOTONIC`: fastest. `DeleteObject` frees nothing until `Reset()`. For per-frame or load-once data.
-  - `FREE_LIST`: best fit. `DeleteObject` frees for reuse and merges free neighbours. Costs a 16-byte
-    header per allocation and O(free blocks) per allocate and free. For objects created and destroyed
-    in any order.
-- `CpuHeap` has no `NewObject` template, because `cpuHeap.h` can be read before the allocator headers.
-- `CpuHeapAllocator` is abstract and can't be instantiated. Pure virtuals: `GetMemoryResource()`, `Reset()`,
-  `Initialize()`.
-- `Release()` is virtual, so it's safe through the `GetAllocator()` base pointer.
-- Each subclass sets its `AllocatorType` tag and owns its concrete pmr resource as a member
-  (`CpuHeapBumpAllocator`: `std::pmr::monotonic_buffer_resource`, `MONOTONIC`;
-  `CpuHeapFreeListAllocator`: our `FreeListMemoryResource`, `FREE_LIST`).
-  - The resource is built over the heap's start and size in `Initialize(pCpuHeap)` and exposed by `GetMemoryResource()`.
-  - std resources take their buffer only at construction, so `Initialize` / `Reset` / `Release` rebuild them
-    in place (`std::destroy_at` + `std::construct_at`). MSVC's `release()` doesn't rewind the initial buffer.
-    Our own resources (`FreeListMemoryResource`) have `Initialize` / `Reset` / `Release` instead.
-- Upstream is always `GetNoGrowthMemoryResource()`: an exhausted heap logs and aborts. It never grows
-  onto the CRT heap and never throws.
-- `NewObject<T>` / `DeleteObject` wrap `polymorphic_allocator::new_object` / `delete_object`.
-  - `DeleteObject` needs the exact created type, because a base pointer would free the wrong address
-    and size. Polymorphic classes it deletes must be `final` (checked by a `static_assert`).
-  - It accepts `const T*`.
-- **Teardown: `DeleteObject` engine objects before `CpuHeap::Release()`.**
-  - `CpuHeap::Release()` deletes its allocator before freeing the memory, so that order is automatic.
-  - Allocator released early by hand: `DeleteObject` still runs the destructor but frees nothing.
-- **Dangling pointers are left as is. Be wary of object lifetimes.**
-  - After `CpuHeap::Release()`, every `CpuHeapAllocator*` copied from `GetAllocator()` (e.g. `Window::m_pAllocator`)
-    and every pointer into the heap dangles. Nothing checks or nulls them.
-  - Before using a stored pointer, make sure its heap and allocator still outlive it.
-- **`Reset()` / `CpuHeap::Release()` with live objects is fine when everything is in that heap.**
-  - For both allocators, these invalidate **every** allocation at once, without running destructors (pmr containers on
-    `GetMemoryResource()` too).
-  - Fine when every live object, its impl and everything they allocate came from that same heap,
-    so it is all dropped together.
-  - Not fine when a live object owns something outside the heap (framework objects such as
-    `SDL_Window`, other heaps): `DeleteObject` it first, or that resource leaks.
-  - Don't touch the dropped objects or their pointers afterwards.
 - For STL containers, use `std::pmr` containers on `GetMemoryResource()`.
 
 **Exceptions** (the only places allowed to skip the engine heap)
@@ -398,6 +389,62 @@ Never route framework allocations through the engine heap.
 
 **Sizes:** use `KB()/MB()/GB()`, never `1024 * 1024`. Integers are bit-shifted, and floats are
 multiplied then truncated to `u64`. Never pass negative values (UB for floats, wraps for integers).
+
+### 6.5 CpuHeap and allocators
+`CpuHeap` owns the memory and its one allocator. The allocator hands it out through `std::pmr`.
+
+**Creating and using a heap**
+- `AllocateHeap` creates the allocator picked by `CpuHeapCreationDesc::m_allocatorType` (zeroed = `MONOTONIC`)
+  and initializes it over the memory. `UNDEFINED` fails and gives the memory back.
+- Allocate through `heap.GetAllocator()->NewObject<T>()`. `GetAllocator()` is `nullptr` before
+  `AllocateHeap` and after `Release()`.
+- `CpuHeap` has no `NewObject` template, because `cpuHeap.h` can be read before the allocator headers.
+- One allocator per heap. `Initialize` is a protected pure virtual and `CpuHeapAllocator` declares
+  `friend class CpuHeap;`, so only the heap initializes its allocator (subclasses keep their override
+  private). Two allocators over one heap would hand out the same memory.
+
+**Choosing an allocator**
+- `MONOTONIC`: fastest. `DeleteObject` frees nothing until `Reset()`. For per-frame or load-once data.
+- `FREE_LIST`: best fit. `DeleteObject` frees for reuse and merges free neighbours. Costs a 16-byte
+  header per allocation and O(free blocks) per allocate and free. For objects created and destroyed
+  in any order.
+
+**Allocator classes**
+- `CpuHeapAllocator` is abstract and can't be instantiated. Pure virtuals: `GetMemoryResource()`, `Reset()`,
+  `Initialize()`.
+- `Release()` is virtual, so it's safe through the `GetAllocator()` base pointer.
+- Each subclass sets its `AllocatorType` tag and owns its concrete pmr resource as a member
+  (`CpuHeapBumpAllocator`: `std::pmr::monotonic_buffer_resource`, `MONOTONIC`;
+  `CpuHeapFreeListAllocator`: our `FreeListMemoryResource`, `FREE_LIST`).
+  - The resource is built over the heap's start and size in `Initialize(pCpuHeap)` and exposed by `GetMemoryResource()`.
+  - std resources take their buffer only at construction, so `Initialize` / `Reset` / `Release` rebuild them
+    in place (`std::destroy_at` + `std::construct_at`). MSVC's `release()` doesn't rewind the initial buffer.
+  - Our own resources (`FreeListMemoryResource`) have `Initialize` / `Reset` / `Release` instead.
+- Upstream is always `GetNoGrowthMemoryResource()`: an exhausted heap logs and aborts. It never grows
+  onto the CRT heap and never throws.
+
+**`NewObject` / `DeleteObject`**
+- They wrap `polymorphic_allocator::new_object` / `delete_object`.
+- `DeleteObject` needs the exact created type, because a base pointer would free the wrong address
+  and size. Polymorphic classes it deletes must be `final` (checked by a `static_assert`).
+- `DeleteObject` accepts `const T*`.
+
+**Lifetimes and teardown**
+- **Teardown: `DeleteObject` engine objects before `CpuHeap::Release()`.**
+  - `CpuHeap::Release()` deletes its allocator before freeing the memory, so that order is automatic.
+  - Allocator released early by hand: `DeleteObject` still runs the destructor but frees nothing.
+- **Dangling pointers are left as is. Be wary of object lifetimes.**
+  - After `CpuHeap::Release()`, every `CpuHeapAllocator*` copied from `GetAllocator()` (e.g. `Window::m_pAllocator`)
+    and every pointer into the heap dangles. Nothing checks or nulls them.
+  - Before using a stored pointer, make sure its heap and allocator still outlive it.
+- **`Reset()` / `CpuHeap::Release()` with live objects is fine when everything is in that heap.**
+  - For both allocators, these invalidate **every** allocation at once, without running destructors
+    (pmr containers on `GetMemoryResource()` too).
+  - Fine when every live object, its impl and everything they allocate came from that same heap,
+    so it is all dropped together.
+  - Not fine when a live object owns something outside the heap (framework objects such as
+    `SDL_Window`, other heaps): `DeleteObject` it first, or that resource leaks.
+  - Don't touch the dropped objects or their pointers afterwards.
 
 ---
 
@@ -447,9 +494,10 @@ multiplied then truncated to `u64`. Never pass negative values (UB for floats, w
 
 ## 10. Tests
 - One `<module>Test.cpp` per module, each starting with `#include "testIncludes.h"`.
-- `testIncludes.h` includes Catch2 and the engine Includes, and provides `TestCpuHeap`:
-  a test-owned heap (`TestCpuHeap(capacityInBytes, allocatorType = MONOTONIC)`) that `REQUIRE`s its own setup, `GetAllocator()` (forwards to the heap, `nullptr`
-  after `Release()`), plus `IsInHeap()`.
+- `testIncludes.h` includes Catch2 and the engine Includes, and provides `TestCpuHeap`, a test-owned heap:
+  - `TestCpuHeap(capacityInBytes, allocatorType = MONOTONIC)`, which `REQUIRE`s its own setup
+  - `GetAllocator()`, which forwards to the heap (`nullptr` after `Release()`)
+  - `IsInHeap()`
 - `TEST_CASE("Readable Name", "[module]")`, Allman braces, `REQUIRE` on `b8` results.
 - Use abstraction classes, never impls. Fill framework desc fields inside `FW_` guards.
 
@@ -465,8 +513,10 @@ multiplied then truncated to `u64`. Never pass negative values (UB for floats, w
 - [ ] Constructor → `Clear()`, destructor → `Release()`, `Release()` → `Clear()`
 - [ ] Descs brace-initialized
 - [ ] Engine objects via `CpuHeapAllocator::NewObject` / `DeleteObject` with raw pointers (only the §6.4 exceptions)
+- [ ] Engine objects deleted before their `CpuHeap` is released, unless everything they own is in that heap (§6.5)
 - [ ] Fallible functions return `b8` and log failures with `"{}: ..."` + `__FUNCTION__`
 - [ ] Short comments, no AGENTS.md references in code
+- [ ] Trailing comments only describe; ownership, usage and caveats go in header or function comments
 - [ ] New files registered in CMake (and tests if relevant)
 - [ ] No edits to `vendor/` or `project/`, existing `// TODO :` markers kept
 

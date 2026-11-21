@@ -5,6 +5,9 @@
 
 #include <SDL3/SDL_main.h>
 
+// SDL entry: sets up the app and hands AppState to SDL through ppAppState
+// Order: SDL video, app heap and its allocator, window, renderer
+// Any failure returns SDL_APP_FAILURE, and SDL still calls SDL_AppQuit to clean up
 SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
 {
 	AppState* pState = GetAppState();
@@ -59,6 +62,7 @@ SDL_AppResult SDL_AppInit(void** ppAppState, int, char**)
 	return SDL_APP_CONTINUE;
 }
 
+// Called by SDL for every event, quits on SDL_EVENT_QUIT
 SDL_AppResult SDL_AppEvent(void* pAppState, SDL_Event* pEvent)
 {
 	if (pEvent->type == SDL_EVENT_QUIT)
@@ -67,6 +71,7 @@ SDL_AppResult SDL_AppEvent(void* pAppState, SDL_Event* pEvent)
 	return SDL_APP_CONTINUE;
 }
 
+// Called by SDL once per frame, clears and presents with the temporary renderer
 SDL_AppResult SDL_AppIterate(void* pAppState)
 {
 	AppState* pState = static_cast<AppState*>(pAppState);
@@ -80,6 +85,9 @@ SDL_AppResult SDL_AppIterate(void* pAppState)
 	return SDL_APP_CONTINUE;
 }
 
+// Called by SDL once at shutdown, also after a failed SDL_AppInit
+// Tears down in reverse: renderer, engine objects, then the app heap, which deletes its allocator
+// Every step checks for nullptr, since init may have stopped partway
 void SDL_AppQuit(void* pAppState, SDL_AppResult)
 {
 	DebugLog(

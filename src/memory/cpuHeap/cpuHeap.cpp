@@ -1,10 +1,11 @@
 #include "cpuHeapIncludes.h"
 
+// Creates the platform impl with CRT new, because the heap can't allocate itself
+// No memory yet, call AllocateHeap()
 CpuHeap::CpuHeap()
 {
 	Clear();
 
-	// CRT allocated: the heap can't allocate itself
 	m_pCpuHeapImpl = new CpuHeapImpl();
 }
 
@@ -21,6 +22,9 @@ b8 CpuHeap::Clear()
 	return true;
 }
 
+// Deletes the allocator, frees the memory, then deletes the impl
+// Objects still in the heap get no destructor call, so DeleteObject any that own outside resources first
+// Afterwards the heap can't be allocated again, and pointers into it or to its allocator dangle
 b8 CpuHeap::Release()
 {
 	b8 isReleased = true;
@@ -47,6 +51,9 @@ b8 CpuHeap::Release()
 	return isReleased;
 }
 
+// Allocates the memory, then creates the allocator picked by desc.m_allocatorType
+// If the allocator can't be created, the memory is given back, so a later call can retry
+// Fails if already allocated or after Release()
 b8 CpuHeap::AllocateHeap(const CpuHeapCreationDesc& desc)
 {
 	if (!m_pCpuHeapImpl)
@@ -94,7 +101,8 @@ CpuHeapAllocator* CpuHeap::GetAllocator() const
 	return m_pAllocator;
 }
 
-// Creates the allocator over this heap's memory
+// Creates (CRT new) and initializes the allocator for allocatorType over this heap's memory
+// On failure nothing is kept, and AllocateHeap gives the memory back
 b8 CpuHeap::CreateAllocator(const AllocatorType allocatorType)
 {
 	CpuHeapAllocator* pAllocator	= nullptr;
